@@ -1,0 +1,38 @@
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-meetly}
+      POSTGRES_USER: ${POSTGRES_USER:-meetly}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-meetly}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: [
+        "CMD-SHELL",
+        "pg_isready -U ${POSTGRES_USER:-meetly} -d ${POSTGRES_DB:-meetly}",
+      ]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+  
+  app:
+    build:
+      context: .
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-meetly}:${POSTGRES_PASSWORD:-meetly}@db:5432/${POSTGRES_DB:-meetly}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    command: >
+      sh -c "npx prisma generate &&
+      npx prisma migrate deploy &&
+      npx prisma db seed &&
+      npm run dev -- --hostname 0.0.0.0"
+
+volumes:
+  postgres_data:
