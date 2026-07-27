@@ -1,0 +1,52 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  importFileExtension = "ts"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String    @id @default(cuid())
+  name         String    @db.VarChar(100)
+  email        String    @unique @db.VarChar(320)
+  passwordHash String
+  createdAt    DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime  @updatedAt @db.Timestamptz(3)
+  bookings     Booking[]
+}
+
+model Room {
+  id        String    @id @default(cuid())
+  name      String    @unique @db.VarChar(100)
+  floor     Int
+  capacity  Int
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
+  bookings  Booking[]
+}
+
+model Booking {
+  id        String   @id @default(cuid())
+  title     String   @db.VarChar(100)
+  startAt   DateTime @db.Timestamptz(3)
+  endAt     DateTime @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  userId String
+  roomId String
+
+  user User @relation(fields: [userId], references: [id])
+  room Room @relation(fields: [roomId], references: [id])
+
+  @@index([roomId, startAt, endAt])
+  @@index([userId, startAt])
+}
