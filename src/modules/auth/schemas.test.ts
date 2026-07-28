@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { registerSchema } from './schemas'
+import { loginSchema, registerSchema } from './schemas'
 
 const validInput = {
 	name: 'Олена',
@@ -54,4 +54,24 @@ describe('registerSchema', () => {
 
 		expect(result.success).toBe(false)
 	})
+})
+
+describe('loginSchema', () => {
+  it('normalizes email', () => {
+    const result = loginSchema.parse({
+      email: '  OLENA@EXAMPLE.COM  ',
+      password: 'StrongPass123$'
+    })
+
+    expect(result.email).toBe('olena@example.com')
+  })
+
+  it('rejects an empty password', () => {
+    const result = loginSchema.safeParse({
+      email: 'olena@example.com',
+      password: ''
+    })
+
+    expect(result.success).toBe(false)
+  })
 })
