@@ -1,0 +1,7 @@
+import bcrypt from 'bcrypt'
+
+const PASSWORD_SALT_ROUNDS = 12
+
+export function hashPassword(password: string) {
+	return bcrypt.hash(password, PASSWORD_SALT_ROUNDS)
+}

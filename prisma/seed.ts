@@ -1,5 +1,5 @@
+import { hashPassword } from '@/server/auth/password'
 import { prisma } from '@/server/db/prisma'
-import bcrypt from 'bcrypt'
 
 const rooms = [
 	{ name: 'Акваріум', floor: 1, capacity: 4 },
@@ -20,7 +20,7 @@ function utcAt(dayOffset: number, hour: number) {
 }
 
 async function main() {
-	const passwordHash = await bcrypt.hash('Potuzhno123!', 12)
+	const passwordHash = await hashPassword('Potuzhno123')
 
 	const [andriy, pavlo] = await Promise.all([
 		prisma.user.upsert({
