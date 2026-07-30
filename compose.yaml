@@ -6,7 +6,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-meetly}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-meetly}
     ports:
-      - "5433:5432"
+      - "5434:5432"
     volumes:
       - postgres_data:/var/lib/postgresql
     healthcheck:
