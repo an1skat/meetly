@@ -1,4 +1,4 @@
-import { Navigation } from '@/components/navigation'
+import { Providers } from '@/app/providers'
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
@@ -29,13 +29,7 @@ export default function RootLayout({
 			className={`${geistSans.variable} ${geistMono.variable}`}
 		>
 			<body className="min-h-screen bg-zinc-50 text-zinc-950">
-				<div className="flex min-h-screen flex-col">
-					<Navigation />
-
-					<main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6">
-						{children}
-					</main>
-				</div>
+				<Providers>{children}</Providers>
 			</body>
 		</html>
 	)

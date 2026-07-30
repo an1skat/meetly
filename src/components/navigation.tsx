@@ -1,39 +1,52 @@
+import { LogoutButton } from '@/modules/auth/logout-button'
 import Link from 'next/link'
 
-export function Navigation() {
+type NavigationProps = {
+	user: {
+		name: string
+		email: string
+	}
+}
+
+const linkClassName =
+	'rounded-sm text-sm text-zinc-600 hover:text-zinc-950 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-zinc-900'
+
+export function Navigation({ user }: NavigationProps) {
 	return (
 		<header className="border-b border-zinc-200 bg-white">
 			<nav
 				aria-label="Основна навігація"
-				className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-4 sm:px-6"
+				className="mx-auto flex min-h-16 max-w-6xl flex-wrap items-center gap-x-4 gap-y-3 px-4 py-3 sm:flex-nowrap sm:gap-6 sm:px-6"
 			>
 				<Link
 					href="/rooms"
-					className="mr-auto text-lg font-semibold"
+					className="mr-auto rounded-sm text-lg font-semibold focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-zinc-900"
 				>
 					Meetly
 				</Link>
 
-				<Link
-					href="/rooms"
-					className="text-sm text-zinc-600 hover:text-zinc-950"
-				>
-					Розклад
-				</Link>
+				<div className="order-3 flex w-full items-center gap-4 sm:order-0 sm:w-auto sm:gap-6">
+					<Link
+						href="/rooms"
+						className={linkClassName}
+					>
+						Розклад
+					</Link>
 
-				<Link
-					href="/my-bookings"
-					className="text-sm text-zinc-600 hover:text-zinc-950"
-				>
-					Мої бронювання
-				</Link>
+					<Link
+						href="/my-bookings"
+						className={linkClassName}
+					>
+						Мої бронювання
+					</Link>
+				</div>
 
-				<Link
-					href="/login"
-					className="rounded-md bg-zinc-900 px-3 py-2 text-sm text-white hover:bg-zinc-700"
-				>
-					Увійти
-				</Link>
+				<div className="hidden text-right md:block">
+					<p className="text-sm font-medium">{user.name}</p>
+					<p className="text-xs text-zinc-500">{user.email}</p>
+				</div>
+
+				<LogoutButton />
 			</nav>
 		</header>
 	)
