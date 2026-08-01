@@ -1,0 +1,23 @@
+import z from 'zod'
+
+const isoUtcDateTime = z
+	.iso
+	.datetime({ offset: false })
+	.refine(
+		value => new Date(value).toISOString().slice(0, 10) === value.slice(0, 10),
+		{ error: 'Вкажіть коректну дату й час у UTC' }
+	)
+	.transform(value => new Date(value))
+
+export const createBookingSchema = z.object({
+	roomId: z.cuid(),
+	title: z
+		.string()
+		.trim()
+		.min(1, { error: 'Вкажіть назву бронювання' })
+		.max(100, { error: 'Назва не може бути довшою за 100 символів' }),
+	startAt: isoUtcDateTime,
+	endAt: isoUtcDateTime
+})
+
+export type CreateBookingInput = z.infer<typeof createBookingSchema>
