@@ -1,10 +1,21 @@
-export const OFFICE_TIME_ZONE = 'Europe/Kyiv'
-export const WORKDAY_START_MINUTES = 9 * 60
-export const WORKDAY_END_MINUTES = 19 * 60
-export const SLOT_MINUTES = 30
+import {
+	OFFICE_TIME_ZONE,
+	SLOT_MINUTES,
+	WORKDAY_END_MINUTES,
+	WORKDAY_START_MINUTES
+} from '@/modules/bookings/time'
+
+export {
+	OFFICE_TIME_ZONE,
+	SLOT_MINUTES,
+	WORKDAY_END_MINUTES,
+	WORKDAY_START_MINUTES
+}
 
 const SLOT_COUNT =
 	(WORKDAY_END_MINUTES - WORKDAY_START_MINUTES) / SLOT_MINUTES
+const DAY_MINUTES = 24 * 60
+const DAY_SLOT_COUNT = DAY_MINUTES / SLOT_MINUTES
 
 const officeDateFormatter = new Intl.DateTimeFormat('en-CA', {
 	timeZone: OFFICE_TIME_ZONE,
@@ -47,6 +58,20 @@ export type WeekDay = {
 	isToday: boolean
 }
 
+export type ScheduleBooking = {
+	id: string
+	title: string
+	startAt: string
+	endAt: string
+	authorName: string
+}
+
+export type BookingSegment = ScheduleBooking & {
+	dayIndex: number
+	top: number
+	height: number
+}
+
 export type CurrentTimeMarker = {
 	dayIndex: number
 	percentage: number
@@ -65,8 +90,16 @@ function getPart(
 	return Number(value)
 }
 
-function getOfficeDateParts(date: Date) {
-	const parts = officeDateFormatter.formatToParts(date)
+function getDateParts(date: Date, timeZone: string) {
+	const parts =
+		timeZone === OFFICE_TIME_ZONE
+			? officeDateFormatter.formatToParts(date)
+			: new Intl.DateTimeFormat('en-CA', {
+				timeZone,
+				year: 'numeric',
+				month: '2-digit',
+				day: '2-digit'
+			}).formatToParts(date)
 
 	return {
 		year: getPart(parts, 'year'),
@@ -75,8 +108,17 @@ function getOfficeDateParts(date: Date) {
 	}
 }
 
-function getOfficeTimeParts(date: Date) {
-	const parts = officeTimeFormatter.formatToParts(date)
+function getTimeParts(date: Date, timeZone: string) {
+	const parts =
+		timeZone === OFFICE_TIME_ZONE
+			? officeTimeFormatter.formatToParts(date)
+			: new Intl.DateTimeFormat('en-GB', {
+				timeZone,
+				hour: '2-digit',
+				minute: '2-digit',
+				second: '2-digit',
+				hourCycle: 'h23'
+			}).formatToParts(date)
 
 	return {
 		hour: getPart(parts, 'hour'),
@@ -108,14 +150,31 @@ export const TIME_LABELS = Array.from(
 
 export const TIME_SLOTS = TIME_LABELS.slice(0, -1)
 
+export const DISPLAY_TIME_LABELS = Array.from(
+	{ length: DAY_SLOT_COUNT + 1 },
+	(_, index) => formatMinutes(index * SLOT_MINUTES)
+)
+
+export const DISPLAY_TIME_SLOTS = DISPLAY_TIME_LABELS.slice(0, -1)
+
 export function getOfficeDateKey(date: Date) {
-	const { year, month, day } = getOfficeDateParts(date)
+	const { year, month, day } = getDateParts(date, OFFICE_TIME_ZONE)
 
 	return formatDateKey(year, month, day)
 }
 
-export function getWeekDays(reference: Date, weekOffset = 0): WeekDay[] {
-	const { year, month, day } = getOfficeDateParts(reference)
+export function getTimeZoneDateKey(date: Date, timeZone: string) {
+	const { year, month, day } = getDateParts(date, timeZone)
+
+	return formatDateKey(year, month, day)
+}
+
+export function getWeekDays(
+	reference: Date,
+	weekOffset = 0,
+	timeZone = OFFICE_TIME_ZONE
+): WeekDay[] {
+	const { year, month, day } = getDateParts(reference, timeZone)
 	const todayKey = formatDateKey(year, month, day)
 	const officeDate = new Date(Date.UTC(year, month - 1, day))
 	const daysSinceMonday = (officeDate.getUTCDay() + 6) % 7
@@ -158,38 +217,107 @@ export function formatWeekLabel(days: WeekDay[]) {
 }
 
 export function formatOfficeTime(date: Date) {
-	const { hour, minute } = getOfficeTimeParts(date)
+	const { hour, minute } = getTimeParts(date, OFFICE_TIME_ZONE)
+
+	return formatMinutes(hour * 60 + minute)
+}
+
+export function formatTimeInTimeZone(date: Date, timeZone: string) {
+	const { hour, minute } = getTimeParts(date, timeZone)
 
 	return formatMinutes(hour * 60 + minute)
 }
 
 export function getCurrentTimeMarker(
 	now: Date,
-	days: WeekDay[]
+	days: WeekDay[],
+	timeZone = OFFICE_TIME_ZONE
 ): CurrentTimeMarker | null {
-	const dayIndex = days.findIndex(day => day.key === getOfficeDateKey(now))
+	const dayIndex = days.findIndex(
+		day => day.key === getTimeZoneDateKey(now, timeZone)
+	)
 
 	if (dayIndex === -1) {
 		return null
 	}
 
-	const { hour, minute, second } = getOfficeTimeParts(now)
+	const { hour, minute, second } = getTimeParts(now, timeZone)
 	const currentMinutes = hour * 60 + minute + second / 60
-
-	if (
-		currentMinutes < WORKDAY_START_MINUTES ||
-		currentMinutes >= WORKDAY_END_MINUTES
-	) {
-		return null
-	}
 
 	return {
 		dayIndex,
-		percentage:
-			((currentMinutes - WORKDAY_START_MINUTES) /
-				(WORKDAY_END_MINUTES - WORKDAY_START_MINUTES)) *
-			100
+		percentage: (currentMinutes / DAY_MINUTES) * 100
 	}
+}
+
+export function getBookingSegments(
+	bookings: ScheduleBooking[],
+	days: WeekDay[],
+	timeZone: string
+): BookingSegment[] {
+	return bookings.flatMap(booking =>
+		days.flatMap((day, dayIndex) => {
+			const startAt = new Date(booking.startAt)
+			const endAt = new Date(booking.endAt)
+			const dayStart = getTimeZoneDayStart(day.date, timeZone)
+			const nextDay = new Date(day.date)
+
+			nextDay.setUTCDate(nextDay.getUTCDate() + 1)
+
+			const dayEnd = getTimeZoneDayStart(nextDay, timeZone)
+			const segmentStart = new Date(
+				Math.max(startAt.getTime(), dayStart.getTime())
+			)
+			const segmentEnd = new Date(
+				Math.min(endAt.getTime(), dayEnd.getTime())
+			)
+
+			if (segmentStart >= segmentEnd) {
+				return []
+			}
+
+			return [
+				{
+					...booking,
+					dayIndex,
+					top:
+						((segmentStart.getTime() - dayStart.getTime()) /
+							(dayEnd.getTime() - dayStart.getTime())) *
+						100,
+					height:
+						((segmentEnd.getTime() - segmentStart.getTime()) /
+							(dayEnd.getTime() - dayStart.getTime())) *
+						100
+				}
+			]
+		})
+	)
+}
+
+function getTimeZoneDayStart(date: Date, timeZone: string) {
+	const target = Date.UTC(
+		date.getUTCFullYear(),
+		date.getUTCMonth(),
+		date.getUTCDate()
+	)
+	let value = new Date(target)
+
+	for (let index = 0; index < 2; index += 1) {
+		const parts = getDateParts(value, timeZone)
+		const time = getTimeParts(value, timeZone)
+		const actual = Date.UTC(
+			parts.year,
+			parts.month - 1,
+			parts.day,
+			time.hour,
+			time.minute,
+			time.second
+		)
+
+		value = new Date(value.getTime() + target - actual)
+	}
+
+	return value
 }
 
 export function isOfficeTimeZone(timeZone: string) {

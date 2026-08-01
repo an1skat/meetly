@@ -1,8 +1,8 @@
 import { RoomSchedule } from '@/modules/rooms/room-schedule'
-import { getRooms } from '@/server/rooms/read'
+import { getRoomsWithBookings } from '@/server/rooms/read'
 
 export default async function RoomsPage() {
-	const rooms = await getRooms()
+	const rooms = await getRoomsWithBookings()
 
 	return (
 		<section className="space-y-6">
@@ -14,7 +14,16 @@ export default async function RoomsPage() {
 			</header>
 
 			<RoomSchedule
-				rooms={rooms}
+				rooms={rooms.map(room => ({
+					...room,
+					bookings: room.bookings.map(booking => ({
+						id: booking.id,
+						title: booking.title,
+						startAt: booking.startAt.toISOString(),
+						endAt: booking.endAt.toISOString(),
+						authorName: booking.user.name
+					}))
+				}))}
 				initialNow={new Date().toISOString()}
 			/>
 		</section>

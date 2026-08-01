@@ -14,7 +14,7 @@ vi.mock('@/server/db/prisma', () => ({
 	}
 }))
 
-import { getRoomById, getRooms } from './read'
+import { getRoomById, getRooms, getRoomsWithBookings } from './read'
 
 const room = {
 	id: 'clh4k3j2l0000qwer1234asdf',
@@ -55,6 +55,37 @@ describe('room reads', () => {
 				floor: true,
 				capacity: true
 			}
+		})
+	})
+
+	it('returns rooms with schedule-safe booking details', async () => {
+		findMany.mockResolvedValue([room])
+
+		await expect(getRoomsWithBookings()).resolves.toEqual([room])
+		expect(findMany).toHaveBeenCalledWith({
+			select: {
+				id: true,
+				name: true,
+				floor: true,
+				capacity: true,
+				bookings: {
+					select: {
+						id: true,
+						title: true,
+						startAt: true,
+						endAt: true,
+						user: {
+							select: {
+								name: true
+							}
+						}
+					},
+					orderBy: {
+						startAt: 'asc'
+					}
+				}
+			},
+			orderBy: [{ floor: 'asc' }, { name: 'asc' }]
 		})
 	})
 })

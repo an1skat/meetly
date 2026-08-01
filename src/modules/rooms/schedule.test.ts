@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
+	formatTimeInTimeZone,
+	getBookingSegments,
 	getCurrentTimeMarker,
 	getOfficeDateKey,
 	getWeekDays,
@@ -49,13 +51,47 @@ describe('room schedule dates', () => {
 
 		expect(marker).toEqual({
 			dayIndex: 3,
-			percentage: 50
+			percentage: 58.333333333333336
 		})
 	})
 
-	it('hides the current-time line outside office hours', () => {
+	it('positions the current-time line across the browser day', () => {
 		const now = new Date('2026-07-30T17:00:00.000Z')
 
-		expect(getCurrentTimeMarker(now, getWeekDays(now))).toBeNull()
+		expect(getCurrentTimeMarker(now, getWeekDays(now))).toEqual({
+			dayIndex: 3,
+			percentage: 83.33333333333334
+		})
+	})
+
+	it('shows the same UTC booking in the browser timezone', () => {
+		const instant = new Date('2026-07-30T06:00:00.000Z')
+
+		expect(formatTimeInTimeZone(instant, 'Europe/Kyiv')).toBe('09:00')
+		expect(formatTimeInTimeZone(instant, 'Europe/Berlin')).toBe('08:00')
+	})
+
+	it('places a booking in each local day it crosses', () => {
+		const days = getWeekDays(
+			new Date('2026-07-30T12:00:00.000Z'),
+			0,
+			'Pacific/Honolulu'
+		)
+		const segments = getBookingSegments(
+			[
+				{
+					id: 'booking-1',
+					title: 'Нічна зустріч',
+					startAt: '2026-07-30T08:00:00.000Z',
+					endAt: '2026-07-30T12:00:00.000Z',
+					authorName: 'Андрій'
+				}
+			],
+			days,
+			'Pacific/Honolulu'
+		)
+
+		expect(segments).toHaveLength(2)
+		expect(segments.map(segment => segment.dayIndex)).toEqual([2, 3])
 	})
 })

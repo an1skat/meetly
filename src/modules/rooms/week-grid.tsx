@@ -1,21 +1,26 @@
 import {
-	formatOfficeTime,
+	DISPLAY_TIME_LABELS,
+	DISPLAY_TIME_SLOTS,
+	formatTimeInTimeZone,
+	getBookingSegments,
 	getCurrentTimeMarker,
-	TIME_LABELS,
-	TIME_SLOTS,
+	type ScheduleBooking,
 	type WeekDay
 } from './schedule'
 
 type WeekGridProps = {
+	bookings: ScheduleBooking[]
 	days: WeekDay[]
 	now: Date
+	timeZone: string
 }
 
-const SLOT_HEIGHT = 48
+const SLOT_HEIGHT = 24
 
-export function WeekGrid({ days, now }: WeekGridProps) {
-	const marker = getCurrentTimeMarker(now, days)
-	const gridHeight = TIME_SLOTS.length * SLOT_HEIGHT
+export function WeekGrid({ bookings, days, now, timeZone }: WeekGridProps) {
+	const marker = getCurrentTimeMarker(now, days, timeZone)
+	const bookingSegments = getBookingSegments(bookings, days, timeZone)
+	const gridHeight = DISPLAY_TIME_SLOTS.length * SLOT_HEIGHT
 
 	return (
 		<div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
@@ -50,17 +55,17 @@ export function WeekGrid({ days, now }: WeekGridProps) {
 						className="relative border-r border-zinc-200 bg-zinc-50"
 						style={{ height: gridHeight }}
 					>
-						{TIME_LABELS.map((label, index) => (
+						{DISPLAY_TIME_LABELS.map((label, index) => (
 							<span
 								key={label}
 								className={`absolute right-3 text-xs tabular-nums text-zinc-500 ${
 									index === 0
 										? 'translate-y-1'
-										: index === TIME_LABELS.length - 1
+										: index === DISPLAY_TIME_LABELS.length - 1
 											? '-translate-y-full'
 											: '-translate-y-1/2'
 								}`}
-								style={{ top: `${(index / TIME_SLOTS.length) * 100}%` }}
+								style={{ top: `${(index / DISPLAY_TIME_SLOTS.length) * 100}%` }}
 							>
 								{label}
 							</span>
@@ -71,20 +76,37 @@ export function WeekGrid({ days, now }: WeekGridProps) {
 						className="relative grid grid-cols-7"
 						style={{ height: gridHeight }}
 					>
-						{TIME_SLOTS.flatMap(slot =>
+						{DISPLAY_TIME_SLOTS.flatMap(slot =>
 							days.map(day => (
 								<div
 									key={`${day.key}-${slot}`}
-									className={`h-12 border-r border-b border-zinc-200 last:border-r-0 ${
+									className={`h-6 border-r border-b border-zinc-200 last:border-r-0 ${
 										day.isToday ? 'bg-blue-50/40' : ''
 									}`}
 								/>
 							))
 						)}
 
+						{bookingSegments.map(segment => (
+							<div
+								key={`${segment.id}-${segment.dayIndex}`}
+								className="absolute z-10 overflow-hidden rounded bg-blue-600 px-1.5 py-1 text-xs text-white shadow-sm"
+								style={{
+									top: `${segment.top}%`,
+									left: `${(segment.dayIndex / days.length) * 100}%`,
+									width: `${100 / days.length}%`,
+									height: `${segment.height}%`
+								}}
+								title={`${segment.title}: ${formatTimeInTimeZone(new Date(segment.startAt), timeZone)}–${formatTimeInTimeZone(new Date(segment.endAt), timeZone)}`}
+							>
+								<span className="block truncate font-medium">{segment.title}</span>
+								<span className="block truncate opacity-90">{segment.authorName}</span>
+							</div>
+						))}
+
 						{marker && (
 							<div
-								aria-label={`Поточний час: ${formatOfficeTime(now)}`}
+								aria-label={`Поточний час: ${formatTimeInTimeZone(now, timeZone)}`}
 								className="pointer-events-none absolute z-10 h-0.5 bg-red-500"
 								role="status"
 								style={{

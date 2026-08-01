@@ -16,6 +16,13 @@ type RoomSummary = {
 	name: string
 	floor: number
 	capacity: number
+	bookings: Array<{
+		id: string
+		title: string
+		startAt: string
+		endAt: string
+		authorName: string
+	}>
 }
 
 type RoomScheduleProps = {
@@ -56,7 +63,8 @@ export function RoomSchedule({ rooms, initialNow }: RoomScheduleProps) {
 
 	const selectedRoom =
 		rooms.find(room => room.id === selectedRoomId) ?? rooms[0]
-	const days = getWeekDays(now, weekOffset)
+	const timeZone = browserTimeZone ?? OFFICE_TIME_ZONE
+	const days = getWeekDays(now, weekOffset, timeZone)
 
 	return (
 		<div className="space-y-5">
@@ -99,10 +107,13 @@ export function RoomSchedule({ rooms, initialNow }: RoomScheduleProps) {
 				</div>
 			</div>
 
-			{browserTimeZone && !isOfficeTimeZone(browserTimeZone) && (
+			<p className="text-sm text-zinc-600">
+				Робочі години офісу: 09:00–19:00, {OFFICE_TIME_ZONE}
+			</p>
+
+			{!isOfficeTimeZone(timeZone) && (
 				<Alert title="Інший часовий пояс">
-					Розклад показано за офісним часом {OFFICE_TIME_ZONE}. Ваш часовий
-					пояс: {browserTimeZone}.
+					Часова шкала та бронювання показані у вашому поясі: {timeZone}.
 				</Alert>
 			)}
 
@@ -140,16 +151,20 @@ export function RoomSchedule({ rooms, initialNow }: RoomScheduleProps) {
 				</nav>
 			</div>
 
-			<p
-				aria-live="polite"
-				className="text-sm text-zinc-500"
-			>
-				На цьому тижні бронювань немає.
-			</p>
+			{selectedRoom.bookings.length === 0 && (
+				<p
+					aria-live="polite"
+					className="text-sm text-zinc-500"
+				>
+					У цій кімнаті ще немає бронювань.
+				</p>
+			)}
 
 			<WeekGrid
+				bookings={selectedRoom.bookings}
 				days={days}
 				now={now}
+				timeZone={timeZone}
 			/>
 		</div>
 	)
