@@ -120,6 +120,7 @@ export function hasValidBookingDuration(startAt: Date, endAt: Date) {
 }
 
 export type BookingTimeValidationError =
+	| 'order'
 	| 'slot'
 	| 'duration'
 	| 'office-hours'
@@ -130,6 +131,10 @@ export function validateBookingTime(
 	endAt: Date,
 	now = new Date()
 ): BookingTimeValidationError | null {
+	if (startAt >= endAt) {
+		return 'order'
+	}
+
 	if (!isThirtyMinuteAligned(startAt) || !isThirtyMinuteAligned(endAt)) {
 		return 'slot'
 	}

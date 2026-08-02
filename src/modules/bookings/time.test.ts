@@ -28,13 +28,15 @@ describe('booking time validation', () => {
 	})
 
 	it('keeps the Kyiv calendar date across a UTC day boundary', () => {
-		expect(utcToOfficeTime(new Date('2026-01-15T22:30:00.000Z'))).toMatchObject({
-			year: 2026,
-			month: 1,
-			day: 16,
-			hour: 0,
-			minute: 30
-		})
+		expect(utcToOfficeTime(new Date('2026-01-15T22:30:00.000Z'))).toMatchObject(
+			{
+				year: 2026,
+				month: 1,
+				day: 16,
+				hour: 0,
+				minute: 30
+			}
+		)
 	})
 
 	it('uses Kyiv daylight-saving offsets for office hours', () => {
@@ -132,4 +134,14 @@ describe('booking API date schema', () => {
 
 		expect(createBookingSchema.safeParse(input).success).toBe(false)
 	})
+})
+
+it('reports an explicit error when start is not before end', () => {
+	expect(
+		validateBookingTime(
+			new Date('2026-07-30T07:00:00.000Z'),
+			new Date('2026-07-30T06:30:00.000Z'),
+			new Date('2026-07-29T12:00:00.000Z')
+		)
+	).toBe('order')
 })

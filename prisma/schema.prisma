@@ -45,6 +45,7 @@ model Room {
   createdAt DateTime  @default(now()) @db.Timestamptz(3)
   updatedAt DateTime  @updatedAt @db.Timestamptz(3)
   bookings  Booking[]
+  bookingSlots BookingSlot[]
 }
 
 model Booking {
@@ -60,7 +61,20 @@ model Booking {
 
   user User @relation(fields: [userId], references: [id])
   room Room @relation(fields: [roomId], references: [id])
+  slots BookingSlot[]
 
   @@index([roomId, startAt, endAt])
   @@index([userId, startAt])
+}
+
+model BookingSlot {
+  bookingId String
+  roomId    String
+  startsAt  DateTime @db.Timestamptz(3)
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  room    Room    @relation(fields: [roomId], references: [id], onDelete: Restrict)
+
+  @@id([bookingId, startsAt])
+  @@unique([roomId, startsAt])
 }

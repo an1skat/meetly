@@ -1,3 +1,4 @@
+import { getBookingSlotStarts } from '@/modules/bookings/slots'
 import { hashPassword } from '@/server/auth/password'
 import { prisma } from '@/server/db/prisma'
 
@@ -9,6 +10,72 @@ const rooms = [
 	{ name: 'Дніпро', floor: 3, capacity: 10 },
 	{ name: 'Обрій', floor: 4, capacity: 12 }
 ]
+
+type DemoBooking = {
+	id: string
+	title: string
+	startAt: Date
+	endAt: Date
+	userId: string
+	roomId: string
+}
+
+async function upsertDemoBooking(booking: DemoBooking) {
+	const { id, title, startAt, endAt, userId, roomId } = booking
+
+	const slots = getBookingSlotStarts(startAt, endAt).map(startsAt => ({
+		roomId,
+		startsAt
+	}))
+
+	return prisma.booking.upsert({
+		where: {
+			id
+		},
+		update: {
+			title,
+			startAt,
+			endAt,
+			user: {
+				connect: {
+					id: userId
+				}
+			},
+			room: {
+				connect: {
+					id: roomId
+				}
+			},
+			slots: {
+				deleteMany: {},
+				createMany: {
+					data: slots
+				}
+			}
+		},
+		create: {
+			id,
+			title,
+			startAt,
+			endAt,
+			user: {
+				connect: {
+					id: userId
+				}
+			},
+			room: {
+				connect: {
+					id: roomId
+				}
+			},
+			slots: {
+				createMany: {
+					data: slots
+				}
+			}
+		}
+	})
+}
 
 function utcAt(dayOffset: number, hour: number) {
 	const value = new Date()
@@ -69,62 +136,34 @@ async function main() {
 		throw new Error('Required seed rooms were not created')
 	}
 
-	await Promise.all([
-		prisma.booking.upsert({
-			where: { id: 'demo-future-andriy' },
-			update: {
-				title: 'Щотижневий sync',
-				startAt: utcAt(1, 10),
-				endAt: utcAt(1, 11),
-				userId: andriy.id,
-				roomId: aquarium.id
-			},
-			create: {
-				id: 'demo-future-andriy',
-				title: 'Щотижневий sync',
-				startAt: utcAt(1, 10),
-				endAt: utcAt(1, 11),
-				userId: andriy.id,
-				roomId: aquarium.id
-			}
-		}),
-		prisma.booking.upsert({
-			where: { id: 'demo-future-pavlo' },
-			update: {
-				title: 'Планування',
-				startAt: utcAt(2, 12),
-				endAt: utcAt(2, 13),
-				userId: pavlo.id,
-				roomId: mars.id
-			},
-			create: {
-				id: 'demo-future-pavlo',
-				title: 'Планування',
-				startAt: utcAt(2, 12),
-				endAt: utcAt(2, 13),
-				userId: pavlo.id,
-				roomId: mars.id
-			}
-		}),
-		prisma.booking.upsert({
-			where: { id: 'demo-past-andriy' },
-			update: {
-				title: 'Ретро',
-				startAt: utcAt(-1, 10),
-				endAt: utcAt(-1, 11),
-				userId: andriy.id,
-				roomId: mars.id
-			},
-			create: {
-				id: 'demo-past-andriy',
-				title: 'Ретро',
-				startAt: utcAt(-1, 10),
-				endAt: utcAt(-1, 11),
-				userId: andriy.id,
-				roomId: mars.id
-			}
-		})
-	])
+	const demoBookings = [
+		{
+			id: 'demo-future-andriy',
+			title: 'Щотижневий sync',
+			startAt: utcAt(1, 10),
+			endAt: utcAt(1, 11),
+			userId: andriy.id,
+			roomId: aquarium.id
+		},
+		{
+			id: 'demo-future-pavlo',
+			title: 'Планування',
+			startAt: utcAt(2, 12),
+			endAt: utcAt(2, 13),
+			userId: pavlo.id,
+			roomId: mars.id
+		},
+		{
+			id: 'demo-past-andriy',
+			title: 'Ретро',
+			startAt: utcAt(-1, 10),
+			endAt: utcAt(-1, 11),
+			userId: andriy.id,
+			roomId: mars.id
+		}
+	] satisfies DemoBooking[]
+
+	await Promise.all(demoBookings.map(upsertDemoBooking))
 
 	console.log('Seeded 6 rooms, 2 users and 3 bookings')
 }
