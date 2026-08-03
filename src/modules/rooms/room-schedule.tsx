@@ -2,6 +2,8 @@
 
 import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { CreateBookingDialog } from '@/modules/bookings/create-booking-dialog'
+import { useRouter } from 'next/navigation'
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import {
 	formatWeekLabel,
@@ -22,6 +24,7 @@ type RoomSummary = {
 		startAt: string
 		endAt: string
 		authorName: string
+		isOwn: boolean
 	}>
 }
 
@@ -36,7 +39,10 @@ const getBrowserTimeZone = () =>
 const getServerTimeZone = () => OFFICE_TIME_ZONE
 
 export function RoomSchedule({ rooms, initialNow }: RoomScheduleProps) {
+	const router = useRouter()
 	const [selectedRoomId, setSelectedRoomId] = useState(rooms[0]?.id ?? '')
+	const [selectedStartAt, setSelectedStartAt] = useState<Date | null>(null)
+	const [successMessage, setSuccessMessage] = useState<string | null>(null)
 	const [weekOffset, setWeekOffset] = useState(0)
 	const [now, setNow] = useState(() => new Date(initialNow))
 	const browserTimeZone = useSyncExternalStore(
@@ -81,7 +87,11 @@ export function RoomSchedule({ rooms, initialNow }: RoomScheduleProps) {
 							id="room"
 							className="h-11 rounded-md border border-zinc-300 bg-white px-3 text-sm outline-none focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200"
 							value={selectedRoom.id}
-							onChange={event => setSelectedRoomId(event.target.value)}
+							onChange={event => {
+								setSelectedRoomId(event.target.value)
+								setSelectedStartAt(null)
+								setSuccessMessage(null)
+							}}
 						>
 							{rooms.map(room => (
 								<option
@@ -115,6 +125,10 @@ export function RoomSchedule({ rooms, initialNow }: RoomScheduleProps) {
 				<Alert title="Інший часовий пояс">
 					Часова шкала та бронювання показані у вашому поясі: {timeZone}.
 				</Alert>
+			)}
+
+			{successMessage && (
+				<Alert variant="success">{successMessage}</Alert>
 			)}
 
 			<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -160,12 +174,35 @@ export function RoomSchedule({ rooms, initialNow }: RoomScheduleProps) {
 				</p>
 			)}
 
+			<p className="text-sm text-zinc-600">
+				Оберіть зелений вільний слот, щоб створити бронювання.
+			</p>
+
 			<WeekGrid
 				bookings={selectedRoom.bookings}
 				days={days}
 				now={now}
 				timeZone={timeZone}
+				onSelectSlot={startAt => {
+					setSelectedStartAt(startAt)
+					setSuccessMessage(null)
+				}}
 			/>
+
+			{selectedStartAt && (
+				<CreateBookingDialog
+					room={selectedRoom}
+					startAt={selectedStartAt}
+					timeZone={timeZone}
+					onClose={() => setSelectedStartAt(null)}
+					onConflict={() => router.refresh()}
+					onCreated={() => {
+						setSelectedStartAt(null)
+						setSuccessMessage('Бронювання успішно створено.')
+						router.refresh()
+					}}
+				/>
+			)}
 		</div>
 	)
 }

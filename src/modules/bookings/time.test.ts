@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { createBookingSchema } from './schemas'
 import {
+	doBookingTimesOverlap,
+	getAvailableBookingDurations,
 	hasValidBookingDuration,
 	isFutureTime,
 	isThirtyMinuteAligned,
@@ -9,6 +11,56 @@ import {
 	utcToTimeZone,
 	validateBookingTime
 } from './time'
+
+describe('booking interval overlap', () => {
+	const at = (time: string) => new Date(`2026-07-30T${time}:00.000Z`)
+
+	it.each([
+		['partial overlap', '06:00', '07:00', '06:30', '07:30'],
+		['same interval', '06:00', '07:00', '06:00', '07:00'],
+		['contained interval', '06:00', '08:00', '06:30', '07:00']
+	])('detects %s', (_, startA, endA, startB, endB) => {
+		expect(
+			doBookingTimesOverlap(at(startA), at(endA), at(startB), at(endB))
+		).toBe(true)
+	})
+
+	it('allows adjacent intervals', () => {
+		expect(
+			doBookingTimesOverlap(at('06:00'), at('07:00'), at('07:00'), at('08:00'))
+		).toBe(false)
+	})
+
+	it('rejects invalid intervals instead of marking a slot as occupied', () => {
+		expect(
+			doBookingTimesOverlap(at('07:00'), at('06:00'), at('06:30'), at('07:30'))
+		).toBe(false)
+	})
+})
+
+describe('available booking durations', () => {
+	it('stops at the next booking', () => {
+		const startAt = new Date('2026-07-30T06:00:00.000Z')
+
+		expect(
+			getAvailableBookingDurations(startAt, [
+				{
+					startAt: new Date('2026-07-30T07:30:00.000Z'),
+					endAt: new Date('2026-07-30T08:30:00.000Z')
+				}
+			])
+		).toEqual([30, 60, 90])
+	})
+
+	it('stops at the end of office hours', () => {
+		expect(
+			getAvailableBookingDurations(
+				new Date('2026-07-30T14:30:00.000Z'),
+				[]
+			)
+		).toEqual([30, 60, 90])
+	})
+})
 
 describe('booking time validation', () => {
 	it('converts a UTC instant to Kyiv and Berlin time', () => {

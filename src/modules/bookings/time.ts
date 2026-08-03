@@ -119,6 +119,47 @@ export function hasValidBookingDuration(startAt: Date, endAt: Date) {
 	)
 }
 
+export function doBookingTimesOverlap(
+	startA: Date,
+	endA: Date,
+	startB: Date,
+	endB: Date
+) {
+	if (startA >= endA || startB >= endB) {
+		return false
+	}
+
+	return startA < endB && startB < endA
+}
+
+export function getAvailableBookingDurations(
+	startAt: Date,
+	bookings: Array<{ startAt: Date; endAt: Date }>
+) {
+	return Array.from(
+		{ length: MAX_BOOKING_MINUTES / SLOT_MINUTES },
+		(_, index) => (index + 1) * SLOT_MINUTES
+	).filter(durationMinutes => {
+		const endAt = new Date(startAt.getTime() + durationMinutes * 60_000)
+
+		return (
+			validateBookingTime(
+				startAt,
+				endAt,
+				new Date(startAt.getTime() - 1)
+			) === null &&
+			!bookings.some(booking =>
+				doBookingTimesOverlap(
+					startAt,
+					endAt,
+					booking.startAt,
+					booking.endAt
+				)
+			)
+		)
+	})
+}
+
 export type BookingTimeValidationError =
 	| 'order'
 	| 'slot'

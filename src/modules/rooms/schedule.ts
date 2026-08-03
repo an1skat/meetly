@@ -1,6 +1,7 @@
 import {
 	OFFICE_TIME_ZONE,
 	SLOT_MINUTES,
+	validateBookingTime,
 	WORKDAY_END_MINUTES,
 	WORKDAY_START_MINUTES
 } from '@/modules/bookings/time'
@@ -32,6 +33,9 @@ const officeTimeFormatter = new Intl.DateTimeFormat('en-GB', {
 	hourCycle: 'h23'
 })
 
+const dateFormatters = new Map<string, Intl.DateTimeFormat>()
+const timeFormatters = new Map<string, Intl.DateTimeFormat>()
+
 const weekdayFormatter = new Intl.DateTimeFormat('uk-UA', {
 	timeZone: 'UTC',
 	weekday: 'short'
@@ -55,6 +59,7 @@ export type WeekDay = {
 	date: Date
 	weekdayLabel: string
 	dateLabel: string
+	isPast: boolean
 	isToday: boolean
 }
 
@@ -64,6 +69,7 @@ export type ScheduleBooking = {
 	startAt: string
 	endAt: string
 	authorName: string
+	isOwn: boolean
 }
 
 export type BookingSegment = ScheduleBooking & {
@@ -91,15 +97,22 @@ function getPart(
 }
 
 function getDateParts(date: Date, timeZone: string) {
-	const parts =
-		timeZone === OFFICE_TIME_ZONE
-			? officeDateFormatter.formatToParts(date)
-			: new Intl.DateTimeFormat('en-CA', {
+	let formatter = dateFormatters.get(timeZone)
+
+	if (!formatter) {
+		formatter = new Intl.DateTimeFormat('en-CA', {
 				timeZone,
 				year: 'numeric',
 				month: '2-digit',
 				day: '2-digit'
-			}).formatToParts(date)
+			})
+		dateFormatters.set(timeZone, formatter)
+	}
+
+	const parts =
+		timeZone === OFFICE_TIME_ZONE
+			? officeDateFormatter.formatToParts(date)
+			: formatter.formatToParts(date)
 
 	return {
 		year: getPart(parts, 'year'),
@@ -109,16 +122,23 @@ function getDateParts(date: Date, timeZone: string) {
 }
 
 function getTimeParts(date: Date, timeZone: string) {
-	const parts =
-		timeZone === OFFICE_TIME_ZONE
-			? officeTimeFormatter.formatToParts(date)
-			: new Intl.DateTimeFormat('en-GB', {
+	let formatter = timeFormatters.get(timeZone)
+
+	if (!formatter) {
+		formatter = new Intl.DateTimeFormat('en-GB', {
 				timeZone,
 				hour: '2-digit',
 				minute: '2-digit',
 				second: '2-digit',
 				hourCycle: 'h23'
-			}).formatToParts(date)
+			})
+		timeFormatters.set(timeZone, formatter)
+	}
+
+	const parts =
+		timeZone === OFFICE_TIME_ZONE
+			? officeTimeFormatter.formatToParts(date)
+			: formatter.formatToParts(date)
 
 	return {
 		hour: getPart(parts, 'hour'),
@@ -200,6 +220,7 @@ export function getWeekDays(
 			date,
 			weekdayLabel: weekdayFormatter.format(date).replace(/\.$/, ''),
 			dateLabel: dateFormatter.format(date),
+			isPast: key < todayKey,
 			isToday: key === todayKey
 		}
 	})
@@ -213,7 +234,9 @@ export function formatWeekLabel(days: WeekDay[]) {
 		return ''
 	}
 
-	return weekFormatter.formatRange(firstDay.date, lastDay.date)
+	return weekFormatter
+		.formatRange(firstDay.date, lastDay.date)
+		.replace(/\s+/g, ' ')
 }
 
 export function formatOfficeTime(date: Date) {
@@ -294,12 +317,103 @@ export function getBookingSegments(
 	)
 }
 
+export function getScheduleSlots(
+	days: WeekDay[],
+	timeZone: string,
+	now: Date
+) {
+	const slots = getOfficeSlotSegments(days, timeZone)
+
+	return {
+		bookableSlots: slots.filter(segment => new Date(segment.startAt) > now),
+		displayRange: getScheduleDisplayRange(slots)
+	}
+}
+
+function getScheduleDisplayRange(segments: BookingSegment[]) {
+	if (segments.length === 0) {
+		return { startMinutes: 0, endMinutes: DAY_MINUTES }
+	}
+
+	const firstMinute =
+		(Math.min(...segments.map(segment => segment.top)) / 100) * DAY_MINUTES
+	const lastMinute =
+		(Math.max(...segments.map(segment => segment.top + segment.height)) / 100) *
+		DAY_MINUTES
+	const roundedFirstMinute = Math.round(firstMinute * 1_000) / 1_000
+	const roundedLastMinute = Math.round(lastMinute * 1_000) / 1_000
+
+	return {
+		startMinutes: Math.max(
+			0,
+			Math.floor(roundedFirstMinute / SLOT_MINUTES) * SLOT_MINUTES
+		),
+		endMinutes: Math.min(
+			DAY_MINUTES,
+			Math.ceil(roundedLastMinute / SLOT_MINUTES) * SLOT_MINUTES
+		)
+	}
+}
+
+function getOfficeSlotSegments(days: WeekDay[], timeZone: string) {
+	const firstDay = days[0]
+	const lastDay = days.at(-1)
+
+	if (!firstDay || !lastDay) {
+		return []
+	}
+
+	const visibleStart = getTimeZoneDayStart(firstDay.date, timeZone)
+	const dayAfterLast = new Date(lastDay.date)
+
+	dayAfterLast.setUTCDate(dayAfterLast.getUTCDate() + 1)
+
+	const visibleEnd = getTimeZoneDayStart(dayAfterLast, timeZone)
+	const slotMilliseconds = SLOT_MINUTES * 60_000
+	const firstSlot =
+		Math.floor(visibleStart.getTime() / slotMilliseconds) * slotMilliseconds
+	const slots: ScheduleBooking[] = []
+
+	for (
+		let startTime = firstSlot;
+		startTime < visibleEnd.getTime();
+		startTime += slotMilliseconds
+	) {
+		const startAt = new Date(startTime)
+		const endAt = new Date(startTime + slotMilliseconds)
+
+		if (
+			validateBookingTime(
+				startAt,
+				endAt,
+				new Date(startAt.getTime() - 1)
+			) === null
+		) {
+			slots.push({
+				id: startAt.toISOString(),
+				title: '',
+				startAt: startAt.toISOString(),
+				endAt: endAt.toISOString(),
+				authorName: '',
+				isOwn: false
+			})
+		}
+	}
+
+	return getBookingSegments(slots, days, timeZone)
+}
+
 function getTimeZoneDayStart(date: Date, timeZone: string) {
 	const target = Date.UTC(
 		date.getUTCFullYear(),
 		date.getUTCMonth(),
 		date.getUTCDate()
 	)
+
+	return getDateInTimeZone(new Date(target), timeZone)
+}
+
+function getDateInTimeZone(target: Date, timeZone: string) {
 	let value = new Date(target)
 
 	for (let index = 0; index < 2; index += 1) {
@@ -314,7 +428,7 @@ function getTimeZoneDayStart(date: Date, timeZone: string) {
 			time.second
 		)
 
-		value = new Date(value.getTime() + target - actual)
+		value = new Date(value.getTime() + target.getTime() - actual)
 	}
 
 	return value

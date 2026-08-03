@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
 	formatTimeInTimeZone,
+	formatWeekLabel,
 	getBookingSegments,
 	getCurrentTimeMarker,
 	getOfficeDateKey,
+	getScheduleSlots,
 	getWeekDays,
 	TIME_LABELS,
 	TIME_SLOTS
@@ -23,6 +25,15 @@ describe('room schedule dates', () => {
 			'2026-08-02'
 		])
 		expect(days[3]?.isToday).toBe(true)
+		expect(days.map(day => day.isPast)).toEqual([
+			true,
+			true,
+			true,
+			false,
+			false,
+			false,
+			false
+		])
 	})
 
 	it('moves by complete weeks', () => {
@@ -30,6 +41,15 @@ describe('room schedule dates', () => {
 
 		expect(days[0]?.key).toBe('2026-08-03')
 		expect(days[6]?.key).toBe('2026-08-09')
+	})
+
+	it('uses hydration-stable spaces in the week label', () => {
+		const label = formatWeekLabel(
+			getWeekDays(new Date('2026-08-03T12:00:00.000Z'))
+		)
+
+		expect(label).toBe('3–9 серп. 2026 р.')
+		expect(label).not.toMatch(/[\u00a0\u202f]/)
 	})
 
 	it('uses the Kyiv calendar date around the UTC day boundary', () => {
@@ -71,6 +91,52 @@ describe('room schedule dates', () => {
 		expect(formatTimeInTimeZone(instant, 'Europe/Berlin')).toBe('08:00')
 	})
 
+	it('projects every valid office slot into a browser timezone', () => {
+		const timeZone = 'Asia/Kathmandu'
+		const days = getWeekDays(
+			new Date('2026-07-30T12:00:00.000Z'),
+			1,
+			timeZone
+		)
+		const { bookableSlots } = getScheduleSlots(
+			days,
+			timeZone,
+			new Date('2026-07-30T12:00:00.000Z')
+		)
+
+		expect(bookableSlots).toHaveLength(140)
+		expect(
+			formatTimeInTimeZone(new Date(bookableSlots[0]!.startAt), timeZone)
+		).toBe('11:45')
+	})
+
+	it.each([
+		['Europe/Kyiv', 9 * 60, 19 * 60],
+		['Europe/Berlin', 8 * 60, 18 * 60],
+		['Asia/Kathmandu', 11 * 60 + 30, 22 * 60],
+		['Pacific/Honolulu', 0, 24 * 60]
+	])(
+		'limits the schedule to Kyiv office hours shown in %s',
+		(timeZone, startMinutes, endMinutes) => {
+			const days = getWeekDays(
+				new Date('2026-07-30T12:00:00.000Z'),
+				1,
+				timeZone
+			)
+
+			expect(
+				getScheduleSlots(
+					days,
+					timeZone,
+					new Date('2026-07-30T12:00:00.000Z')
+				).displayRange
+			).toEqual({
+				startMinutes,
+				endMinutes
+			})
+		}
+	)
+
 	it('places a booking in each local day it crosses', () => {
 		const days = getWeekDays(
 			new Date('2026-07-30T12:00:00.000Z'),
@@ -84,7 +150,8 @@ describe('room schedule dates', () => {
 					title: 'Нічна зустріч',
 					startAt: '2026-07-30T08:00:00.000Z',
 					endAt: '2026-07-30T12:00:00.000Z',
-					authorName: 'Андрій'
+					authorName: 'Андрій',
+					isOwn: true
 				}
 			],
 			days,

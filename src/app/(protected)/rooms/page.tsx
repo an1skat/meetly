@@ -1,15 +1,17 @@
 import { RoomSchedule } from '@/modules/rooms/room-schedule'
+import { requireUser } from '@/server/auth/session'
 import { getRoomsWithBookings } from '@/server/rooms/read'
 
 export default async function RoomsPage() {
-	const rooms = await getRoomsWithBookings()
+	const user = await requireUser()
+	const rooms = await getRoomsWithBookings(user.id)
 
 	return (
 		<section className="space-y-6">
 			<header>
 				<h1 className="text-2xl font-semibold">Розклад кімнат</h1>
 				<p className="mt-2 text-sm text-zinc-600">
-					Оберіть кімнату та переглядайте її розклад за тижнями.
+					Оберіть кімнату, а потім вільний слот у розкладі.
 				</p>
 			</header>
 
@@ -21,7 +23,8 @@ export default async function RoomsPage() {
 						title: booking.title,
 						startAt: booking.startAt.toISOString(),
 						endAt: booking.endAt.toISOString(),
-						authorName: booking.user.name
+						authorName: booking.user.name,
+						isOwn: booking.isOwn
 					}))
 				}))}
 				initialNow={new Date().toISOString()}

@@ -139,7 +139,7 @@ async function main() {
 	const demoBookings = [
 		{
 			id: 'demo-future-andriy',
-			title: 'Щотижневий sync',
+			title: 'Командний sync',
 			startAt: utcAt(1, 10),
 			endAt: utcAt(1, 11),
 			userId: andriy.id,

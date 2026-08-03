@@ -17,6 +17,7 @@ const roomScheduleSelect = {
 			endAt: true,
 			user: {
 				select: {
+					id: true,
 					name: true
 				}
 			}
@@ -41,9 +42,25 @@ export async function getRoomById(id: string) {
 	})
 }
 
-export async function getRoomsWithBookings() {
-	return prisma.room.findMany({
+export async function getRoomsWithBookings(currentUserId: string) {
+	const rooms = await prisma.room.findMany({
 		select: roomScheduleSelect,
 		orderBy: [{ floor: 'asc' }, { name: 'asc' }]
 	})
+
+	return rooms.map(room => ({
+		...room,
+		bookings: room.bookings.map(booking => {
+			const isOwn = booking.user.id === currentUserId
+
+			return {
+				...booking,
+				title: isOwn ? booking.title : 'Зайнято',
+				isOwn,
+				user: {
+					name: booking.user.name
+				}
+			}
+		})
+	}))
 }

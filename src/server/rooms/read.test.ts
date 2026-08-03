@@ -59,9 +59,44 @@ describe('room reads', () => {
 	})
 
 	it('returns rooms with schedule-safe booking details', async () => {
-		findMany.mockResolvedValue([room])
+		const currentUserId = 'cm1currentuser000000000001'
+		const ownBooking = {
+			id: 'cm1ownbooking000000000001',
+			title: 'Приватна розмова',
+			startAt: new Date('2026-08-04T07:00:00.000Z'),
+			endAt: new Date('2026-08-04T08:00:00.000Z'),
+			user: { id: currentUserId, name: 'Андрій' }
+		}
+		const foreignBooking = {
+			id: 'cm1foreignbooking00000001',
+			title: 'Конфіденційна тема',
+			startAt: new Date('2026-08-04T08:00:00.000Z'),
+			endAt: new Date('2026-08-04T09:00:00.000Z'),
+			user: { id: 'cm1otheruser0000000000001', name: 'Павло' }
+		}
 
-		await expect(getRoomsWithBookings()).resolves.toEqual([room])
+		findMany.mockResolvedValue([
+			{ ...room, bookings: [ownBooking, foreignBooking] }
+		])
+
+		await expect(getRoomsWithBookings(currentUserId)).resolves.toEqual([
+			{
+				...room,
+				bookings: [
+					{
+						...ownBooking,
+						isOwn: true,
+						user: { name: 'Андрій' }
+					},
+					{
+						...foreignBooking,
+						title: 'Зайнято',
+						isOwn: false,
+						user: { name: 'Павло' }
+					}
+				]
+			}
+		])
 		expect(findMany).toHaveBeenCalledWith({
 			select: {
 				id: true,
@@ -76,6 +111,7 @@ describe('room reads', () => {
 						endAt: true,
 						user: {
 							select: {
+								id: true,
 								name: true
 							}
 						}
