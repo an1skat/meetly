@@ -20,4 +20,14 @@ export const createBookingSchema = z.object({
 	endAt: isoUtcDateTime
 })
 
+export const bookingRangeSchema = z
+	.object({
+		from: isoUtcDateTime,
+		to: isoUtcDateTime
+	})
+	.refine(({ from, to }) => from < to, {
+		error: 'Час початку діапазону має бути раніше за час завершення',
+		path: ['to']
+	})
+
 export type CreateBookingInput = z.infer<typeof createBookingSchema>

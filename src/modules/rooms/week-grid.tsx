@@ -11,6 +11,7 @@ import {
 	getBookingSegments,
 	getCurrentTimeMarker,
 	getScheduleSlots,
+	type BookingSegment,
 	type ScheduleBooking,
 	type WeekDay
 } from './schedule'
@@ -23,8 +24,13 @@ type WeekGridProps = {
 	onSelectSlot: (startAt: Date) => void
 }
 
-const SLOT_HEIGHT = 24
+const SLOT_HEIGHT = 40
 const DAY_MINUTES = 24 * 60
+
+type LaidOutBookingSegment = BookingSegment & {
+	columnIndex: number
+	columnCount: number
+}
 
 function fitSegmentsToRange<T extends { top: number; height: number }>(
 	segments: T[],
@@ -49,6 +55,73 @@ function fitSegmentsToRange<T extends { top: number; height: number }>(
 			}
 		]
 	})
+}
+
+export function layoutBookingSegments(
+	segments: BookingSegment[]
+): LaidOutBookingSegment[] {
+	const result: LaidOutBookingSegment[] = []
+	const segmentsByDay = new Map<number, BookingSegment[]>()
+
+	for (const segment of segments) {
+		const daySegments = segmentsByDay.get(segment.dayIndex) ?? []
+
+		daySegments.push(segment)
+		segmentsByDay.set(segment.dayIndex, daySegments)
+	}
+
+	for (const daySegments of segmentsByDay.values()) {
+		const sorted = daySegments.toSorted(
+			(a, b) =>
+				new Date(a.startAt).getTime() - new Date(b.startAt).getTime()
+		)
+		let cluster: BookingSegment[] = []
+		let clusterEnd = Number.NEGATIVE_INFINITY
+
+		const flushCluster = () => {
+			const columnEnds: number[] = []
+			const placements = cluster.map(segment => {
+				const start = new Date(segment.startAt).getTime()
+				const end = new Date(segment.endAt).getTime()
+				let columnIndex = columnEnds.findIndex(columnEnd => columnEnd <= start)
+
+				if (columnIndex === -1) {
+					columnIndex = columnEnds.length
+					columnEnds.push(end)
+				} else {
+					columnEnds[columnIndex] = end
+				}
+
+				return { segment, columnIndex }
+			})
+
+			for (const placement of placements) {
+				result.push({
+					...placement.segment,
+					columnIndex: placement.columnIndex,
+					columnCount: columnEnds.length
+				})
+			}
+		}
+
+		for (const segment of sorted) {
+			const start = new Date(segment.startAt).getTime()
+			const end = new Date(segment.endAt).getTime()
+
+			if (cluster.length > 0 && start >= clusterEnd) {
+				flushCluster()
+				cluster = []
+				clusterEnd = Number.NEGATIVE_INFINITY
+			}
+
+			cluster.push(segment)
+			clusterEnd = Math.max(clusterEnd, end)
+		}
+
+		flushCluster()
+	}
+
+	return result
 }
 
 export function WeekGrid({
@@ -81,10 +154,8 @@ export function WeekGrid({
 	const { startMinutes, endMinutes } = displayRange
 	const rangeStart = (startMinutes / DAY_MINUTES) * 100
 	const rangeHeight = ((endMinutes - startMinutes) / DAY_MINUTES) * 100
-	const bookingSegments = fitSegmentsToRange(
-		rawBookingSegments,
-		rangeStart,
-		rangeHeight
+	const bookingSegments = layoutBookingSegments(
+		fitSegmentsToRange(rawBookingSegments, rangeStart, rangeHeight)
 	)
 	const freeSlotSegments = fitSegmentsToRange(
 		rawFreeSlotSegments,
@@ -243,6 +314,7 @@ export function WeekGrid({
 
 						{bookingSegments.map(segment => {
 							const isPast = days[segment.dayIndex]?.isPast
+							const dayWidth = 100 / days.length
 
 							return (
 								<div
@@ -252,8 +324,8 @@ export function WeekGrid({
 									} ${isPast ? 'opacity-60 saturate-50' : ''}`}
 									style={{
 										top: `${segment.top}%`,
-										left: `${(segment.dayIndex / days.length) * 100}%`,
-										width: `${100 / days.length}%`,
+										left: `${dayWidth * segment.dayIndex + (dayWidth * segment.columnIndex) / segment.columnCount}%`,
+										width: `${dayWidth / segment.columnCount}%`,
 										height: `${segment.height}%`
 									}}
 									title={`${segment.title}: ${formatTimeInTimeZone(new Date(segment.startAt), timeZone)}–${formatTimeInTimeZone(new Date(segment.endAt), timeZone)}`}

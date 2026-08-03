@@ -2,14 +2,17 @@
 
 import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
 import { CreateBookingDialog } from '@/modules/bookings/create-booking-dialog'
-import { useRouter } from 'next/navigation'
+import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import {
 	formatWeekLabel,
+	getTimeZoneDayStart,
 	getWeekDays,
 	isOfficeTimeZone,
-	OFFICE_TIME_ZONE
+	OFFICE_TIME_ZONE,
+	type ScheduleBooking
 } from './schedule'
 import { WeekGrid } from './week-grid'
 
@@ -18,14 +21,6 @@ type RoomSummary = {
 	name: string
 	floor: number
 	capacity: number
-	bookings: Array<{
-		id: string
-		title: string
-		startAt: string
-		endAt: string
-		authorName: string
-		isOwn: boolean
-	}>
 }
 
 type RoomScheduleProps = {
@@ -38,8 +33,35 @@ const getBrowserTimeZone = () =>
 	Intl.DateTimeFormat().resolvedOptions().timeZone
 const getServerTimeZone = () => OFFICE_TIME_ZONE
 
+type RoomBookingsResponse = {
+	bookings?: ScheduleBooking[]
+	message?: string
+}
+
+async function fetchRoomBookings(roomId: string, from: string, to: string) {
+	const searchParams = new URLSearchParams({ from, to })
+	let response: Response
+
+	try {
+		response = await fetch(
+			`/api/rooms/${encodeURIComponent(roomId)}/bookings?${searchParams}`
+		)
+	} catch {
+		throw new Error('Немає зв’язку із сервером. Спробуйте ще раз.')
+	}
+
+	const payload = (await response.json().catch(() => null)) as
+		| RoomBookingsResponse
+		| null
+
+	if (!response.ok || !payload?.bookings) {
+		throw new Error(payload?.message ?? 'Не вдалося отримати бронювання')
+	}
+
+	return payload.bookings
+}
+
 export function RoomSchedule({ rooms, initialNow }: RoomScheduleProps) {
-	const router = useRouter()
 	const [selectedRoomId, setSelectedRoomId] = useState(rooms[0]?.id ?? '')
 	const [selectedStartAt, setSelectedStartAt] = useState<Date | null>(null)
 	const [successMessage, setSuccessMessage] = useState<string | null>(null)
@@ -59,18 +81,29 @@ export function RoomSchedule({ rooms, initialNow }: RoomScheduleProps) {
 		return () => window.clearInterval(intervalId)
 	}, [])
 
-	if (rooms.length === 0) {
+	const selectedRoom = rooms.find(room => room.id === selectedRoomId) ?? rooms[0]
+	const timeZone = browserTimeZone ?? OFFICE_TIME_ZONE
+	const days = getWeekDays(now, weekOffset, timeZone)
+	const weekAfter = new Date(days[0]!.date)
+
+	weekAfter.setUTCDate(weekAfter.getUTCDate() + 7)
+
+	const from = getTimeZoneDayStart(days[0]!.date, timeZone).toISOString()
+	const to = getTimeZoneDayStart(weekAfter, timeZone).toISOString()
+	const bookingsQuery = useQuery({
+		queryKey: ['room-bookings', selectedRoom?.id, from, to],
+		queryFn: () => fetchRoomBookings(selectedRoom!.id, from, to),
+		enabled: Boolean(selectedRoom)
+	})
+	const bookings = bookingsQuery.data ?? []
+
+	if (!selectedRoom) {
 		return (
 			<Alert title="Кімнат поки немає">
 				Після додавання кімнат вони з’являться у цьому списку.
 			</Alert>
 		)
 	}
-
-	const selectedRoom =
-		rooms.find(room => room.id === selectedRoomId) ?? rooms[0]
-	const timeZone = browserTimeZone ?? OFFICE_TIME_ZONE
-	const days = getWeekDays(now, weekOffset, timeZone)
 
 	return (
 		<div className="space-y-5">
@@ -165,41 +198,66 @@ export function RoomSchedule({ rooms, initialNow }: RoomScheduleProps) {
 				</nav>
 			</div>
 
-			{selectedRoom.bookings.length === 0 && (
-				<p
-					aria-live="polite"
-					className="text-sm text-zinc-500"
-				>
-					У цій кімнаті ще немає бронювань.
-				</p>
-			)}
-
 			<p className="text-sm text-zinc-600">
 				Оберіть зелений вільний слот, щоб створити бронювання.
 			</p>
 
-			<WeekGrid
-				bookings={selectedRoom.bookings}
-				days={days}
-				now={now}
-				timeZone={timeZone}
-				onSelectSlot={startAt => {
-					setSelectedStartAt(startAt)
-					setSuccessMessage(null)
-				}}
-			/>
+			{bookingsQuery.isPending ||
+			(bookingsQuery.isFetching && !bookingsQuery.data) ? (
+				<div className="flex min-h-48 items-center justify-center gap-3 rounded-xl border border-zinc-200 bg-white text-sm text-zinc-600">
+					<Spinner label="Завантаження бронювань" />
+					Завантажуємо бронювання…
+				</div>
+			) : bookingsQuery.isError ? (
+				<Alert
+					title="Не вдалося завантажити розклад"
+					variant="error"
+				>
+					<p>{bookingsQuery.error.message}</p>
+					<Button
+						className="mt-3"
+						disabled={bookingsQuery.isFetching}
+						variant="secondary"
+						onClick={() => void bookingsQuery.refetch()}
+					>
+						Повторити
+					</Button>
+				</Alert>
+			) : (
+				<>
+					{bookings.length === 0 && (
+						<p
+							aria-live="polite"
+							className="text-sm text-zinc-500"
+						>
+							На цьому тижні бронювань немає.
+						</p>
+					)}
+
+					<WeekGrid
+						bookings={bookings}
+						days={days}
+						now={now}
+						timeZone={timeZone}
+						onSelectSlot={startAt => {
+							setSelectedStartAt(startAt)
+							setSuccessMessage(null)
+						}}
+					/>
+				</>
+			)}
 
 			{selectedStartAt && (
 				<CreateBookingDialog
-					room={selectedRoom}
+					room={{ ...selectedRoom, bookings }}
 					startAt={selectedStartAt}
 					timeZone={timeZone}
 					onClose={() => setSelectedStartAt(null)}
-					onConflict={() => router.refresh()}
+					onConflict={() => void bookingsQuery.refetch()}
 					onCreated={() => {
 						setSelectedStartAt(null)
 						setSuccessMessage('Бронювання успішно створено.')
-						router.refresh()
+						void bookingsQuery.refetch()
 					}}
 				/>
 			)}

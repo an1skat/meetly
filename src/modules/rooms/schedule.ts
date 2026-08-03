@@ -403,7 +403,7 @@ function getOfficeSlotSegments(days: WeekDay[], timeZone: string) {
 	return getBookingSegments(slots, days, timeZone)
 }
 
-function getTimeZoneDayStart(date: Date, timeZone: string) {
+export function getTimeZoneDayStart(date: Date, timeZone: string) {
 	const target = Date.UTC(
 		date.getUTCFullYear(),
 		date.getUTCMonth(),
