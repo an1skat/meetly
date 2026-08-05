@@ -21,6 +21,7 @@ type WeekGridProps = {
 	days: WeekDay[]
 	now: Date
 	timeZone: string
+	onCancelBooking: (booking: Pick<ScheduleBooking, 'id' | 'title'>) => void
 	onSelectSlot: (startAt: Date) => void
 }
 
@@ -129,6 +130,7 @@ export function WeekGrid({
 	days,
 	now,
 	timeZone,
+	onCancelBooking,
 	onSelectSlot
 }: WeekGridProps) {
 	const scrollContainerRef = useRef<HTMLDivElement>(null)
@@ -330,12 +332,32 @@ export function WeekGrid({
 									}}
 									title={`${segment.title}: ${formatTimeInTimeZone(new Date(segment.startAt), timeZone)}–${formatTimeInTimeZone(new Date(segment.endAt), timeZone)}`}
 								>
-									<span className="block truncate font-medium">
+									<span
+										className={`block truncate font-medium ${segment.isOwn ? 'pr-6' : ''}`}
+									>
 										{segment.title}
 									</span>
 									<span className="block truncate opacity-90">
 										{segment.authorName}
 									</span>
+									{segment.isOwn && (
+										<button
+											type="button"
+											aria-label={
+												`Скасувати бронювання «${segment.title}»`
+											}
+											className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded bg-white/20 text-sm leading-none outline-none hover:bg-white/30 focus-visible:ring-2 focus-visible:ring-white disabled:cursor-not-allowed disabled:opacity-60"
+											title="Скасувати бронювання"
+											onClick={() =>
+												onCancelBooking({
+													id: segment.id,
+													title: segment.title
+												})
+											}
+										>
+											×
+										</button>
+									)}
 								</div>
 							)
 						})}
