@@ -31,3 +31,12 @@ export const bookingRangeSchema = z
 	})
 
 export type CreateBookingInput = z.infer<typeof createBookingSchema>
+
+export const myBookingsQuerySchema = z.object({
+	type: z.enum(['upcoming', 'past']).default('upcoming'),
+	page: z.coerce.number().int().min(1).default(1)
+})
+
+export type MyBookingsType = z.infer<
+	typeof myBookingsQuerySchema
+>['type']
