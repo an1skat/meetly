@@ -6,7 +6,10 @@ import z from 'zod'
 import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { createBookingSchema } from '@/modules/bookings/schemas'
+import {
+	createBookingSchema,
+	recurrenceSchema
+} from '@/modules/bookings/schemas'
 import {
 	getAvailableBookingDurations,
 	SLOT_MINUTES
@@ -20,9 +23,13 @@ const bookingFormSchema = z.object({
 })
 
 type BookingFormValues = z.infer<typeof bookingFormSchema>
-type BookingMutationValues = BookingFormValues & { durationMinutes: number }
+type BookingMutationValues = BookingFormValues & {
+	durationMinutes: number
+	repeatWeekly: boolean
+	repeatCount: number
+}
 type BookingFieldErrors = Partial<
-	Record<'roomId' | 'title' | 'startAt' | 'endAt', string[]>
+	Record<'roomId' | 'title' | 'startAt' | 'endAt' | 'recurrence', string[]>
 >
 
 type BookingErrorResponse = {
@@ -76,7 +83,12 @@ async function postBooking(
 				roomId,
 				title: values.title,
 				startAt: startAt.toISOString(),
-				endAt: endAt.toISOString()
+				endAt: endAt.toISOString(),
+				recurrence: values.repeatWeekly
+					? {
+							count: values.repeatCount
+						}
+					: undefined
 			})
 		})
 	} catch {
@@ -117,6 +129,13 @@ export function CreateBookingDialog({
 	const [selectedDurationMinutes, setSelectedDurationMinutes] = useState(
 		durationOptions[0] ?? SLOT_MINUTES
 	)
+	const [repeatWeekly, setRepeatWeekly] = useState(false)
+	const [repeatCount, setRepeatCount] = useState(8)
+	const repeatCountResult = recurrenceSchema.shape.count.safeParse(repeatCount)
+	const repeatCountError =
+		repeatWeekly && !repeatCountResult.success
+			? repeatCountResult.error.issues[0]?.message
+			: undefined
 	const dateLabel = new Intl.DateTimeFormat('uk-UA', {
 		timeZone,
 		weekday: 'long',
@@ -149,13 +168,15 @@ export function CreateBookingDialog({
 			}
 
 			const roomError = error.fieldErrors?.roomId?.[0]
+			const recurrenceError = error.fieldErrors?.recurrence?.[0]
 			const timeError =
 				error.fieldErrors?.startAt?.[0] ?? error.fieldErrors?.endAt?.[0]
 
-			if (roomError || timeError || !titleError) {
+			if (roomError || timeError || recurrenceError || !titleError) {
 				setError('root.server', {
 					type: 'server',
-					message: roomError ?? timeError ?? error.message
+					message:
+						roomError ?? timeError ?? recurrenceError ?? error.message
 				})
 			}
 
@@ -192,9 +213,15 @@ export function CreateBookingDialog({
 			return
 		}
 
+		if (repeatWeekly && !repeatCountResult.success) {
+			return
+		}
+
 		mutation.mutate({
 			...values,
-			durationMinutes: selectedDurationMinutes
+			durationMinutes: selectedDurationMinutes,
+			repeatWeekly,
+			repeatCount
 		})
 	})
 	const formatDuration = (minutes: number) => {
@@ -276,6 +303,42 @@ export function CreateBookingDialog({
 						Щоб змінити дату або початок, закрийте вікно та оберіть інший
 						зелений слот.
 					</p>
+				</div>
+
+				<div className="grid gap-3">
+					<label className="flex min-h-11 items-center gap-3 rounded-md border border-zinc-300 px-3 text-sm">
+						<input
+							type="checkbox"
+							checked={repeatWeekly}
+							disabled={mutation.isPending}
+							onChange={event => setRepeatWeekly(event.target.checked)}
+						/>
+
+						Повторювати щотижня
+					</label>
+
+					{repeatWeekly && (
+						<div className="grid gap-1">
+							<Input
+								id="repeat-count"
+								label="Кількість бронювань у серії"
+								type="number"
+								min={2}
+								max={12}
+								step={1}
+								value={repeatCount}
+								error={repeatCountError}
+								disabled={mutation.isPending}
+								onChange={event =>
+									setRepeatCount(Number(event.target.value))
+								}
+							/>
+
+							<p className="text-xs text-zinc-500">
+								Від 2 до 12, разом із поточним бронюванням.
+							</p>
+						</div>
+					)}
 				</div>
 
 				<fieldset className="grid gap-2">

@@ -2,13 +2,15 @@
 
 import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import type { CancelBookingScope } from '@/modules/bookings/schemas'
 import { useMutation } from '@tanstack/react-query'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 type CancelBookingDialogProps = {
 	booking: {
 		id: string
 		title: string
+		recurringSeriesId: string | null
 	}
 	onClose: () => void
 	onCancelled: () => void | Promise<void>
@@ -18,13 +20,20 @@ type CancelBookingResponse = {
 	message?: string
 }
 
-async function deleteBooking(bookingId: string) {
+async function deleteBooking(
+	bookingId: string,
+	scope: CancelBookingScope
+) {
+	const params = new URLSearchParams({ scope })
 	let response: Response
 
 	try {
-		response = await fetch(`/api/bookings/${encodeURIComponent(bookingId)}`, {
-			method: 'DELETE'
-		})
+		response = await fetch(
+			`/api/bookings/${encodeURIComponent(bookingId)}?${params.toString()}`,
+			{
+				method: 'DELETE'
+			}
+		)
 	} catch {
 		throw new Error('Немає зв’язку із сервером. Спробуйте ще раз.')
 	}
@@ -46,8 +55,9 @@ export function CancelBookingDialog({
 	onCancelled
 }: CancelBookingDialogProps) {
 	const dialogRef = useRef<HTMLDialogElement>(null)
+	const [scope, setScope] = useState<CancelBookingScope>('occurrence')
 	const mutation = useMutation<void, Error>({
-		mutationFn: () => deleteBooking(booking.id),
+		mutationFn: () => deleteBooking(booking.id, scope),
 		onSuccess: onCancelled
 	})
 
@@ -114,6 +124,37 @@ export function CancelBookingDialog({
 				>
 					Бронювання буде видалено з розкладу. Цю дію не можна скасувати.
 				</p>
+
+				{booking.recurringSeriesId && (
+					<fieldset
+						className="grid gap-2"
+						disabled={mutation.isPending}
+					>
+						<legend className="text-sm font-medium">
+							Що скасувати?
+						</legend>
+
+						<label className="flex min-h-11 items-center gap-3 rounded-md border border-zinc-200 px-3">
+							<input
+								type="radio"
+								name="cancel-scope"
+								checked={scope === 'occurrence'}
+								onChange={() => setScope('occurrence')}
+							/>
+							Тільки це бронювання
+						</label>
+
+						<label className="flex min-h-11 items-center gap-3 rounded-md border border-zinc-200 px-3">
+							<input
+								type="radio"
+								name="cancel-scope"
+								checked={scope === 'series'}
+								onChange={() => setScope('series')}
+							/>
+							Усю майбутню серію
+						</label>
+					</fieldset>
+				)}
 
 				{mutation.isError && (
 					<Alert variant="error">{mutation.error.message}</Alert>

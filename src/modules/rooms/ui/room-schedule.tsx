@@ -80,7 +80,7 @@ export function RoomSchedule({
 	const [selectedStartAt, setSelectedStartAt] = useState<Date | null>(null)
 	const [bookingToCancel, setBookingToCancel] = useState<Pick<
 		ScheduleBooking,
-		'id' | 'title'
+		'id' | 'title' | 'recurringSeriesId'
 	> | null>(null)
 	const [successMessage, setSuccessMessage] = useState<string | null>(null)
 	const [prevWeekParams, setPrevWeekParams] = useState({

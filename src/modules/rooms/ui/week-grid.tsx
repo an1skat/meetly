@@ -18,7 +18,12 @@ type WeekGridProps = {
 	days: WeekDay[]
 	now: Date
 	timeZone: string
-	onCancelBooking: (booking: Pick<ScheduleBooking, 'id' | 'title'>) => void
+	onCancelBooking: (
+		booking: Pick<
+			ScheduleBooking,
+			'id' | 'title' | 'recurringSeriesId'
+		>
+	) => void
 	onSelectSlot: (startAt: Date) => void
 }
 
@@ -336,10 +341,12 @@ export function WeekGrid({
 											className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded bg-white/20 text-sm leading-none outline-none hover:bg-white/30 focus-visible:ring-2 focus-visible:ring-white disabled:cursor-not-allowed disabled:opacity-60"
 											title="Скасувати бронювання"
 											onClick={() =>
-												onCancelBooking({
-													id: segment.id,
-													title: segment.title
-												})
+											onCancelBooking({
+												id: segment.id,
+												title: segment.title,
+												recurringSeriesId:
+													segment.recurringSeriesId
+											})
 											}
 										>
 											×

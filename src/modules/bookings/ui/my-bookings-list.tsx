@@ -16,6 +16,7 @@ type MyBooking = {
 	startAt: string
 	endAt: string
 	canCancel: boolean
+	recurringSeriesId: string | null
 	room: {
 		id: string
 		name: string
