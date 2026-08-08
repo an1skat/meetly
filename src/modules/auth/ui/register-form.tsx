@@ -1,20 +1,14 @@
 'use client'
 
+import { Alert } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { AuthRequestError, postAuth } from '@/modules/auth/api'
+import { type RegisterInput, registerSchema } from '@/modules/auth/schemas'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
-import { Alert } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import {
-	AuthRequestError,
-	postAuth
-} from '@/modules/auth/api'
-import {
-	type RegisterInput,
-	registerSchema
-} from '@/modules/auth/schemas'
 
 type RegisterResponse = {
 	user: {
@@ -48,12 +42,14 @@ export function RegisterForm() {
 		AuthRequestError,
 		RegisterInput
 	>({
-		mutationFn: (values) =>
+		mutationFn: values =>
 			postAuth<RegisterResponse>('/api/auth/register', values),
-		onSuccess: () => {
-			router.replace('/login?registered=1')
+		onSuccess: (_response, values) => {
+			router.replace(
+				`/verify-email/pending?email=${encodeURIComponent(values.email)}`
+			)
 		},
-		onError: (error) => {
+		onError: error => {
 			let hasFieldError = false
 
 			for (const field of fields) {
@@ -74,7 +70,7 @@ export function RegisterForm() {
 		}
 	})
 
-	const onSubmit = handleSubmit((values) => {
+	const onSubmit = handleSubmit(values => {
 		clearErrors()
 		mutation.reset()
 		mutation.mutate(values)
@@ -117,9 +113,7 @@ export function RegisterForm() {
 			/>
 
 			{errors.root?.server?.message && (
-				<Alert variant="error">
-					{errors.root.server.message}
-				</Alert>
+				<Alert variant="error">{errors.root.server.message}</Alert>
 			)}
 
 			<Button

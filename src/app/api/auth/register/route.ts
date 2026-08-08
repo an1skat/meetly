@@ -1,4 +1,5 @@
 import { registerSchema } from '@/modules/auth/schemas'
+import { logDevEmailVerificationLink } from '@/server/auth/email-verification'
 import { registerUser } from '@/server/auth/register'
 import z from 'zod'
 
@@ -30,6 +31,11 @@ export async function POST(request: Request) {
 				{ status: 409 }
 			)
 		}
+
+		logDevEmailVerificationLink(request.url, {
+			email: result.user.email,
+			token: result.verificationToken
+		})
 
 		return Response.json({ user: result.user }, { status: 201 })
 	} catch {

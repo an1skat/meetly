@@ -14,14 +14,16 @@ datasource db {
 }
 
 model User {
-  id           String    @id @default(cuid())
-  name         String    @db.VarChar(100)
-  email        String    @unique @db.VarChar(320)
-  passwordHash String
-  createdAt    DateTime  @default(now()) @db.Timestamptz(3)
-  updatedAt    DateTime  @updatedAt @db.Timestamptz(3)
-  bookings     Booking[]
-  sessions     Session[]
+  id                     String                  @id @default(cuid())
+  name                   String                  @db.VarChar(100)
+  email                  String                  @unique @db.VarChar(320)
+  passwordHash           String
+  emailVerifiedAt        DateTime?               @db.Timestamptz(3)
+  emailVerificationToken EmailVerificationToken?
+  createdAt              DateTime                @default(now()) @db.Timestamptz(3)
+  updatedAt              DateTime                @updatedAt @db.Timestamptz(3)
+  bookings               Booking[]
+  sessions               Session[]
 }
 
 model Session {
@@ -38,13 +40,13 @@ model Session {
 }
 
 model Room {
-  id        String    @id @default(cuid())
-  name      String    @unique @db.VarChar(100)
-  floor     Int
-  capacity  Int
-  createdAt DateTime  @default(now()) @db.Timestamptz(3)
-  updatedAt DateTime  @updatedAt @db.Timestamptz(3)
-  bookings  Booking[]
+  id           String        @id @default(cuid())
+  name         String        @unique @db.VarChar(100)
+  floor        Int
+  capacity     Int
+  createdAt    DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime      @updatedAt @db.Timestamptz(3)
+  bookings     Booking[]
   bookingSlots BookingSlot[]
 }
 
@@ -59,8 +61,8 @@ model Booking {
   userId String
   roomId String
 
-  user User @relation(fields: [userId], references: [id])
-  room Room @relation(fields: [roomId], references: [id])
+  user  User          @relation(fields: [userId], references: [id])
+  room  Room          @relation(fields: [roomId], references: [id])
   slots BookingSlot[]
 
   @@index([roomId, startAt, endAt])
@@ -77,4 +79,12 @@ model BookingSlot {
 
   @@id([bookingId, startsAt])
   @@unique([roomId, startsAt])
+}
+
+model EmailVerificationToken {
+  userId    String   @id
+  tokenHash String   @unique @db.Char(64)
+  expiresAt DateTime @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

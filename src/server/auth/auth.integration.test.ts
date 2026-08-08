@@ -6,6 +6,7 @@ import {
 	expect,
 	it
 } from 'vitest'
+import { hashOpaqueToken } from './token'
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL
 
@@ -31,6 +32,10 @@ let authenticateUser:
 	| (typeof import('./login'))['authenticateUser']
 	| undefined
 
+let verifyEmailToken:
+	| (typeof import('./email-verification'))['verifyEmailToken']
+	| undefined
+
 const marker = randomUUID()
 const email = `auth-${marker}@example.com`
 
@@ -41,6 +46,7 @@ describeDatabase('authentication integration', () => {
 		;({ prisma } = await import('@/server/db/prisma'))
 		;({ registerUser } = await import('./register'))
 		;({ authenticateUser } = await import('./login'))
+		;({ verifyEmailToken } = await import('./email-verification'))
 	})
 
 	afterAll(async () => {
@@ -55,8 +61,8 @@ describeDatabase('authentication integration', () => {
 		await prisma.$disconnect()
 	})
 
-	it('registers a user in PostgreSQL', async () => {
-		if (!prisma || !registerUser) {
+	it('registers and verifies a user in PostgreSQL', async () => {
+		if (!prisma || !registerUser || !verifyEmailToken) {
 			throw new Error('Integration test was not initialized')
 		}
 
@@ -68,15 +74,55 @@ describeDatabase('authentication integration', () => {
 
 		expect(result.ok).toBe(true)
 
+		if (!result.ok) {
+			throw new Error('Registration failed')
+		}
+
 		const storedUser = await prisma.user.findUnique({
 			where: { email }
 		})
+		const storedToken =
+			await prisma.emailVerificationToken.findUnique({
+				where: {
+					userId: result.user.id
+				}
+			})
 
 		expect(storedUser).not.toBeNull()
 		expect(storedUser?.name).toBe('Тестовий користувач')
+		expect(storedUser?.emailVerifiedAt).toBeNull()
 		expect(storedUser?.passwordHash).not.toBe(
 			'StrongPass123$'
 		)
+		expect(storedToken?.tokenHash).toBe(
+			hashOpaqueToken(result.verificationToken)
+		)
+		expect(storedToken?.tokenHash).not.toBe(
+			result.verificationToken
+		)
+
+		await expect(
+			verifyEmailToken(result.verificationToken)
+		).resolves.toEqual({ ok: true })
+		await expect(
+			verifyEmailToken(result.verificationToken)
+		).resolves.toEqual({
+			ok: false,
+			reason: 'invalid'
+		})
+
+		const verifiedUser = await prisma.user.findUnique({
+			where: { email }
+		})
+		const consumedToken =
+			await prisma.emailVerificationToken.findUnique({
+				where: {
+					userId: result.user.id
+				}
+			})
+
+		expect(verifiedUser?.emailVerifiedAt).toBeInstanceOf(Date)
+		expect(consumedToken).toBeNull()
 	})
 
 	it('authenticates a registered user', async () => {
