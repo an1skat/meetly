@@ -10,7 +10,7 @@ vi.mock('@/server/db/prisma', () => ({
 	}
 }))
 
-import { getRoomBookings } from './read'
+import { getMyBookings, getRoomBookings } from './read'
 
 afterEach(() => {
 	vi.clearAllMocks()
@@ -28,6 +28,7 @@ describe('getRoomBookings', () => {
 				title: 'Планування',
 				startAt: new Date('2026-08-04T07:00:00.000Z'),
 				endAt: new Date('2026-08-04T08:00:00.000Z'),
+				recurringSeriesId: 'cm1series0000000000000001',
 				user: { id: currentUserId, name: 'Андрій' }
 			},
 			{
@@ -35,6 +36,7 @@ describe('getRoomBookings', () => {
 				title: 'Конфіденційна тема',
 				startAt: new Date('2026-08-05T07:00:00.000Z'),
 				endAt: new Date('2026-08-05T08:00:00.000Z'),
+				recurringSeriesId: 'cm1foreignseries000000001',
 				user: { id: 'cm1otheruser0000000000001', name: 'Павло' }
 			}
 		])
@@ -48,7 +50,8 @@ describe('getRoomBookings', () => {
 				startAt: new Date('2026-08-04T07:00:00.000Z'),
 				endAt: new Date('2026-08-04T08:00:00.000Z'),
 				authorName: 'Андрій',
-				isOwn: true
+				isOwn: true,
+				recurringSeriesId: 'cm1series0000000000000001'
 			},
 			{
 				id: 'cm1foreignbooking00000001',
@@ -56,7 +59,8 @@ describe('getRoomBookings', () => {
 				startAt: new Date('2026-08-05T07:00:00.000Z'),
 				endAt: new Date('2026-08-05T08:00:00.000Z'),
 				authorName: 'Павло',
-				isOwn: false
+				isOwn: false,
+				recurringSeriesId: null
 			}
 		])
 
@@ -71,6 +75,7 @@ describe('getRoomBookings', () => {
 				title: true,
 				startAt: true,
 				endAt: true,
+				recurringSeriesId: true,
 				user: {
 					select: {
 						id: true,
@@ -79,6 +84,47 @@ describe('getRoomBookings', () => {
 				}
 			},
 			orderBy: { startAt: 'asc' }
+		})
+	})
+})
+
+describe('getMyBookings', () => {
+	it('includes the recurring series id in upcoming bookings', async () => {
+		const now = new Date('2026-08-01T00:00:00.000Z')
+		const recurringSeriesId = 'cm1series0000000000000001'
+
+		findMany.mockResolvedValue([
+			{
+				id: 'cm1ownbooking000000000001',
+				title: 'Планування',
+				startAt: new Date('2026-08-04T07:00:00.000Z'),
+				endAt: new Date('2026-08-04T08:00:00.000Z'),
+				recurringSeriesId,
+				room: {
+					id: 'clh4k3j2l0000qwer1234asdf',
+					name: 'Акваріум'
+				}
+			}
+		])
+
+		await expect(
+			getMyBookings('cm1currentuser000000000001', 'upcoming', 1, now)
+		).resolves.toEqual({
+			bookings: [
+				{
+					id: 'cm1ownbooking000000000001',
+					title: 'Планування',
+					startAt: new Date('2026-08-04T07:00:00.000Z'),
+					endAt: new Date('2026-08-04T08:00:00.000Z'),
+					recurringSeriesId,
+					room: {
+						id: 'clh4k3j2l0000qwer1234asdf',
+						name: 'Акваріум'
+					},
+					canCancel: true
+				}
+			],
+			pagination: null
 		})
 	})
 })

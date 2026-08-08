@@ -7,12 +7,13 @@ import {
 } from '@/modules/bookings/time'
 import { prisma } from '@/server/db/prisma'
 
-const bookingSelect = {
+export const bookingSelect = {
 	id: true,
 	title: true,
 	startAt: true,
 	endAt: true,
 	roomId: true,
+	recurringSeriesId: true,
 	user: {
 		select: {
 			id: true,
@@ -43,7 +44,7 @@ export type CreateBookingResult =
 
 class RoomNotFoundError extends Error {}
 
-type BookingActor = {
+export type BookingActor = {
 	id: string
 	emailVerifiedAt: Date | null
 }

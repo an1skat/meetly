@@ -14,16 +14,17 @@ datasource db {
 }
 
 model User {
-  id                     String                  @id @default(cuid())
-  name                   String                  @db.VarChar(100)
-  email                  String                  @unique @db.VarChar(320)
+  id                     String                   @id @default(cuid())
+  name                   String                   @db.VarChar(100)
+  email                  String                   @unique @db.VarChar(320)
   passwordHash           String
-  emailVerifiedAt        DateTime?               @db.Timestamptz(3)
+  emailVerifiedAt        DateTime?                @db.Timestamptz(3)
   emailVerificationToken EmailVerificationToken?
-  createdAt              DateTime                @default(now()) @db.Timestamptz(3)
-  updatedAt              DateTime                @updatedAt @db.Timestamptz(3)
+  createdAt              DateTime                 @default(now()) @db.Timestamptz(3)
+  updatedAt              DateTime                 @updatedAt @db.Timestamptz(3)
   bookings               Booking[]
   sessions               Session[]
+  recurringBookingSeries RecurringBookingSeries[]
 }
 
 model Session {
@@ -40,14 +41,15 @@ model Session {
 }
 
 model Room {
-  id           String        @id @default(cuid())
-  name         String        @unique @db.VarChar(100)
-  floor        Int
-  capacity     Int
-  createdAt    DateTime      @default(now()) @db.Timestamptz(3)
-  updatedAt    DateTime      @updatedAt @db.Timestamptz(3)
-  bookings     Booking[]
-  bookingSlots BookingSlot[]
+  id                     String                   @id @default(cuid())
+  name                   String                   @unique @db.VarChar(100)
+  floor                  Int
+  capacity               Int
+  createdAt              DateTime                 @default(now()) @db.Timestamptz(3)
+  updatedAt              DateTime                 @updatedAt @db.Timestamptz(3)
+  bookings               Booking[]
+  bookingSlots           BookingSlot[]
+  recurringBookingSeries RecurringBookingSeries[]
 }
 
 model Booking {
@@ -65,8 +67,13 @@ model Booking {
   room  Room          @relation(fields: [roomId], references: [id])
   slots BookingSlot[]
 
+  recurringSeriesId String?
+
+  recurringSeries RecurringBookingSeries? @relation(fields: [recurringSeriesId], references: [id], onDelete: SetNull)
+
   @@index([roomId, startAt, endAt])
   @@index([userId, startAt])
+  @@index([recurringSeriesId])
 }
 
 model BookingSlot {
@@ -79,6 +86,23 @@ model BookingSlot {
 
   @@id([bookingId, startsAt])
   @@unique([roomId, startsAt])
+}
+
+model RecurringBookingSeries {
+  id              String   @id @default(cuid())
+  weekday         Int
+  occurrenceCount Int
+  createdAt       DateTime @default(now()) @db.Timestamptz(3)
+
+  userId String
+  roomId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  bookings Booking[]
+
+  @@index([userId, createdAt])
 }
 
 model EmailVerificationToken {

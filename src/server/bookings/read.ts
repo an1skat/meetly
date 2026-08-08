@@ -6,6 +6,7 @@ const scheduleBookingSelect = {
 	title: true,
 	startAt: true,
 	endAt: true,
+	recurringSeriesId: true,
 	user: {
 		select: {
 			id: true,
@@ -19,6 +20,7 @@ const myBookingSelect = {
 	title: true,
 	startAt: true,
 	endAt: true,
+	recurringSeriesId: true,
 	room: {
 		select: {
 			id: true,
@@ -54,7 +56,8 @@ export async function getRoomBookings(
 			startAt: booking.startAt,
 			endAt: booking.endAt,
 			authorName: booking.user.name,
-			isOwn
+			isOwn,
+			recurringSeriesId: isOwn ? booking.recurringSeriesId : null
 		}
 	})
 }

@@ -20,6 +20,18 @@ export const createBookingSchema = z.object({
 	endAt: isoUtcDateTime
 })
 
+export const recurrenceSchema = z.object({
+	count: z
+		.number({ error: 'Вкажіть кількість бронювань у серії' })
+		.int({ error: 'Кількість бронювань має бути цілим числом' })
+		.min(2, { error: 'Мінімум 2 бронювання у серії' })
+		.max(12, { error: 'Максимум 12 бронювань у серії' })
+})
+
+export const createBookingRequestSchema = createBookingSchema.extend({
+	recurrence: recurrenceSchema.optional()
+})
+
 export const bookingRangeSchema = z
 	.object({
 		from: isoUtcDateTime,
@@ -31,6 +43,18 @@ export const bookingRangeSchema = z
 	})
 
 export type CreateBookingInput = z.infer<typeof createBookingSchema>
+
+export type CreateRecurringBookingInput = CreateBookingInput & {
+	repeatCount: z.infer<typeof recurrenceSchema>['count']
+}
+
+export const cancelBookingQuerySchema = z.object({
+	scope: z.enum(['occurrence', 'series']).default('occurrence')
+})
+
+export type CancelBookingScope = z.infer<
+	typeof cancelBookingQuerySchema
+>['scope']
 
 export const myBookingsQuerySchema = z.object({
 	type: z.enum(['upcoming', 'past']).default('upcoming'),

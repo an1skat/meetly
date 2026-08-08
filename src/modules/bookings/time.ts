@@ -25,6 +25,8 @@ const officeTimeFormatter = new Intl.DateTimeFormat('en-GB', {
 	hourCycle: 'h23'
 })
 
+const timeZoneFormatters = new Map<string, Intl.DateTimeFormat>()
+
 function getPart(
 	parts: Intl.DateTimeFormatPart[],
 	type: Intl.DateTimeFormatPartTypes
@@ -38,10 +40,7 @@ function getPart(
 	return Number(value)
 }
 
-function toZonedTime(
-	date: Date,
-	formatter: Intl.DateTimeFormat
-): ZonedTime {
+function toZonedTime(date: Date, formatter: Intl.DateTimeFormat): ZonedTime {
 	const parts = formatter.formatToParts(date)
 
 	return {
@@ -55,9 +54,10 @@ function toZonedTime(
 }
 
 export function utcToTimeZone(date: Date, timeZone: string): ZonedTime {
-	return toZonedTime(
-		date,
-		new Intl.DateTimeFormat('en-GB', {
+	let formatter = timeZoneFormatters.get(timeZone)
+
+	if (!formatter) {
+		formatter = new Intl.DateTimeFormat('en-GB', {
 			timeZone,
 			year: 'numeric',
 			month: '2-digit',
@@ -67,7 +67,10 @@ export function utcToTimeZone(date: Date, timeZone: string): ZonedTime {
 			second: '2-digit',
 			hourCycle: 'h23'
 		})
-	)
+		timeZoneFormatters.set(timeZone, formatter)
+	}
+
+	return toZonedTime(date, formatter)
 }
 
 export function utcToOfficeTime(date: Date): ZonedTime {
@@ -92,7 +95,11 @@ function isSameOfficeDate(startAt: Date, endAt: Date) {
 export function isThirtyMinuteAligned(date: Date) {
 	const time = utcToOfficeTime(date)
 
-	return time.minute % SLOT_MINUTES === 0 && time.second === 0 && date.getUTCMilliseconds() === 0
+	return (
+		time.minute % SLOT_MINUTES === 0 &&
+		time.second === 0 &&
+		date.getUTCMilliseconds() === 0
+	)
 }
 
 export function isWithinOfficeHours(startAt: Date, endAt: Date) {
@@ -143,18 +150,10 @@ export function getAvailableBookingDurations(
 		const endAt = new Date(startAt.getTime() + durationMinutes * 60_000)
 
 		return (
-			validateBookingTime(
-				startAt,
-				endAt,
-				new Date(startAt.getTime() - 1)
-			) === null &&
+			validateBookingTime(startAt, endAt, new Date(startAt.getTime() - 1)) ===
+				null &&
 			!bookings.some(booking =>
-				intervalsOverlap(
-					startAt,
-					endAt,
-					booking.startAt,
-					booking.endAt
-				)
+				intervalsOverlap(startAt, endAt, booking.startAt, booking.endAt)
 			)
 		)
 	})
@@ -189,4 +188,73 @@ export function validateBookingTime(
 	}
 
 	return isFutureTime(startAt, now) ? null : 'past'
+}
+
+export function zonedTimeToUtc(time: ZonedTime, timeZone: string) {
+	const targetMilliseconds = Date.UTC(
+		time.year,
+		time.month - 1,
+		time.day,
+		time.hour,
+		time.minute,
+		time.second
+	)
+
+	let result = new Date(targetMilliseconds)
+
+	for (let index = 0; index < 3; index += 1) {
+		const actual = utcToTimeZone(result, timeZone)
+
+		const actualMilliseconds = Date.UTC(
+			actual.year,
+			actual.month - 1,
+			actual.day,
+			actual.hour,
+			actual.minute,
+			actual.second
+		)
+
+		result = new Date(
+			result.getTime() + targetMilliseconds - actualMilliseconds
+		)
+	}
+
+	return result
+}
+
+export function addOfficeWeeks(date: Date, weeks: number) {
+	const officeTime = utcToOfficeTime(date)
+
+	const shiftedDate = new Date(
+		Date.UTC(
+			officeTime.year,
+			officeTime.month - 1,
+			officeTime.day + weeks * 7,
+			officeTime.hour,
+			officeTime.minute,
+			officeTime.second
+		)
+	)
+
+	return zonedTimeToUtc(
+		{
+			year: shiftedDate.getUTCFullYear(),
+			month: shiftedDate.getUTCMonth() + 1,
+			day: shiftedDate.getUTCDate(),
+			hour: shiftedDate.getUTCHours(),
+			minute: shiftedDate.getUTCMinutes(),
+			second: shiftedDate.getUTCSeconds()
+		},
+		OFFICE_TIME_ZONE
+	)
+}
+
+export function getOfficeWeekday(date: Date) {
+	const time = utcToOfficeTime(date)
+
+	const weekday = new Date(
+		Date.UTC(time.year, time.month - 1, time.day)
+	).getUTCDay()
+
+	return weekday === 0 ? 7 : weekday
 }

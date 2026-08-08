@@ -65,7 +65,11 @@ describe('DELETE /api/bookings/:id', () => {
 		expect(await response.json()).toEqual({
 			message: 'Ви можете скасувати лише власне бронювання'
 		})
-		expect(cancelBookingMock).toHaveBeenCalledWith(bookingId, user.id)
+		expect(cancelBookingMock).toHaveBeenCalledWith(
+			bookingId,
+			user.id,
+			'occurrence'
+		)
 	})
 
 	it('cancels an owned booking', async () => {
@@ -75,7 +79,43 @@ describe('DELETE /api/bookings/:id', () => {
 
 		expect(response.status).toBe(204)
 		expect(await response.text()).toBe('')
-		expect(cancelBookingMock).toHaveBeenCalledWith(bookingId, user.id)
+		expect(cancelBookingMock).toHaveBeenCalledWith(
+			bookingId,
+			user.id,
+			'occurrence'
+		)
+	})
+
+	it('cancels the future series when requested', async () => {
+		cancelBookingMock.mockResolvedValue({ ok: true })
+		const seriesRequest = new Request(
+			`http://localhost/api/bookings/${bookingId}?scope=series`,
+			{ method: 'DELETE' }
+		)
+
+		const response = await DELETE(seriesRequest, context)
+
+		expect(response.status).toBe(204)
+		expect(cancelBookingMock).toHaveBeenCalledWith(
+			bookingId,
+			user.id,
+			'series'
+		)
+	})
+
+	it('returns 400 for an invalid cancellation scope', async () => {
+		const invalidRequest = new Request(
+			`http://localhost/api/bookings/${bookingId}?scope=unknown`,
+			{ method: 'DELETE' }
+		)
+
+		const response = await DELETE(invalidRequest, context)
+
+		expect(response.status).toBe(400)
+		expect(await response.json()).toEqual({
+			message: 'Некоректний тип скасування'
+		})
+		expect(cancelBookingMock).not.toHaveBeenCalled()
 	})
 
 	it('returns 500 without exposing an internal error', async () => {

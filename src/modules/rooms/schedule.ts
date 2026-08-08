@@ -2,6 +2,7 @@ import {
 	OFFICE_TIME_ZONE,
 	SLOT_MINUTES,
 	validateBookingTime,
+	zonedTimeToUtc,
 	WORKDAY_END_MINUTES,
 	WORKDAY_START_MINUTES
 } from '@/modules/bookings/time'
@@ -69,6 +70,7 @@ export type ScheduleBooking = {
 	endAt: string
 	authorName: string
 	isOwn: boolean
+	recurringSeriesId: string | null
 }
 
 export type BookingSegment = ScheduleBooking & {
@@ -381,7 +383,8 @@ function getOfficeSlotSegments(days: WeekDay[], timeZone: string) {
 				startAt: startAt.toISOString(),
 				endAt: endAt.toISOString(),
 				authorName: '',
-				isOwn: false
+				isOwn: false,
+				recurringSeriesId: null
 			})
 		}
 	}
@@ -390,34 +393,17 @@ function getOfficeSlotSegments(days: WeekDay[], timeZone: string) {
 }
 
 export function getTimeZoneDayStart(date: Date, timeZone: string) {
-	const target = Date.UTC(
-		date.getUTCFullYear(),
-		date.getUTCMonth(),
-		date.getUTCDate()
+	return zonedTimeToUtc(
+		{
+			year: date.getUTCFullYear(),
+			month: date.getUTCMonth() + 1,
+			day: date.getUTCDate(),
+			hour: 0,
+			minute: 0,
+			second: 0
+		},
+		timeZone
 	)
-
-	return getDateInTimeZone(new Date(target), timeZone)
-}
-
-function getDateInTimeZone(target: Date, timeZone: string) {
-	let value = new Date(target)
-
-	for (let index = 0; index < 2; index += 1) {
-		const parts = getDateParts(value, timeZone)
-		const time = getTimeParts(value, timeZone)
-		const actual = Date.UTC(
-			parts.year,
-			parts.month - 1,
-			parts.day,
-			time.hour,
-			time.minute,
-			time.second
-		)
-
-		value = new Date(value.getTime() + target.getTime() - actual)
-	}
-
-	return value
 }
 
 export function isOfficeTimeZone(timeZone: string) {

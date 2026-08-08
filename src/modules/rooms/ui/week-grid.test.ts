@@ -16,6 +16,7 @@ function segment(
 		endAt,
 		authorName: 'Автор',
 		isOwn: false,
+		recurringSeriesId: null,
 		dayIndex: 0,
 		top,
 		height

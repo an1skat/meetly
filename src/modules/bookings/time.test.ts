@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createBookingSchema } from './schemas'
 import {
+	addOfficeWeeks,
 	getAvailableBookingDurations,
 	hasValidBookingDuration,
 	intervalsOverlap,
@@ -11,6 +12,29 @@ import {
 	utcToTimeZone,
 	validateBookingTime
 } from './time'
+
+describe('weekly office recurrence', () => {
+	it.each([
+		[
+			'spring DST',
+			'2026-03-24T08:00:00.000Z',
+			'2026-03-31T07:00:00.000Z'
+		],
+		[
+			'autumn DST',
+			'2026-10-20T07:00:00.000Z',
+			'2026-10-27T08:00:00.000Z'
+		]
+	])('keeps the office wall time across %s', (_name, source, expected) => {
+		const result = addOfficeWeeks(new Date(source), 1)
+
+		expect(result.toISOString()).toBe(expected)
+		expect(utcToOfficeTime(result)).toMatchObject({
+			hour: 10,
+			minute: 0
+		})
+	})
+})
 
 describe('intervalsOverlap', () => {
 	const at = (day: string, time: string) =>

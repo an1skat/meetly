@@ -37,6 +37,7 @@ const booking = {
 	startAt: input.startAt,
 	endAt: input.endAt,
 	roomId,
+	recurringSeriesId: null,
 	user: {
 		id: userId,
 		name: 'Андрій'
@@ -163,6 +164,7 @@ describe('createBooking', () => {
 				startAt: true,
 				endAt: true,
 				roomId: true,
+				recurringSeriesId: true,
 				user: {
 					select: {
 						id: true,

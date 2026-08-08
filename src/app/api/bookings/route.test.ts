@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { getCurrentUserMock, createBookingMock } = vi.hoisted(() => ({
-	getCurrentUserMock: vi.fn(),
-	createBookingMock: vi.fn()
-}))
+const { getCurrentUserMock, createBookingMock, createRecurringBookingMock } =
+	vi.hoisted(() => ({
+		getCurrentUserMock: vi.fn(),
+		createBookingMock: vi.fn(),
+		createRecurringBookingMock: vi.fn()
+	}))
 
 vi.mock('@/server/auth/session', () => ({
 	getCurrentUser: getCurrentUserMock
@@ -11,6 +13,10 @@ vi.mock('@/server/auth/session', () => ({
 
 vi.mock('@/server/bookings/create', () => ({
 	createBooking: createBookingMock
+}))
+
+vi.mock('@/server/bookings/create-recurring', () => ({
+	createRecurringBooking: createRecurringBookingMock
 }))
 
 import { POST } from './route'
@@ -56,6 +62,7 @@ describe('POST /api/bookings', () => {
 			message: 'Потрібно увійти в обліковий запис'
 		})
 		expect(createBookingMock).not.toHaveBeenCalled()
+		expect(createRecurringBookingMock).not.toHaveBeenCalled()
 	})
 
 	it('returns field errors for an invalid request', async () => {
@@ -74,7 +81,24 @@ describe('POST /api/bookings', () => {
 			}
 		})
 		expect(createBookingMock).not.toHaveBeenCalled()
+		expect(createRecurringBookingMock).not.toHaveBeenCalled()
 	})
+
+	it.each([1, 13, 2.5])(
+		'rejects invalid recurrence count %s',
+		async count => {
+			const response = await POST(
+				createRequest({
+					...validBody,
+					recurrence: { count }
+				})
+			)
+
+			expect(response.status).toBe(400)
+			expect(createBookingMock).not.toHaveBeenCalled()
+			expect(createRecurringBookingMock).not.toHaveBeenCalled()
+		}
+	)
 
 	it.each([
 		[
@@ -121,6 +145,7 @@ describe('POST /api/bookings', () => {
 			startAt: new Date(validBody.startAt),
 			endAt: new Date(validBody.endAt),
 			roomId,
+			recurringSeriesId: null,
 			user: {
 				id: user.id,
 				name: user.name
@@ -151,6 +176,85 @@ describe('POST /api/bookings', () => {
 			},
 			user
 		)
+		expect(createRecurringBookingMock).not.toHaveBeenCalled()
+	})
+
+	it('returns the exact conflicting date for a recurring series', async () => {
+		createRecurringBookingMock.mockResolvedValue({
+			ok: false,
+			reason: 'slot-taken',
+			conflictingStartAt: new Date('2099-07-15T06:00:00.000Z')
+		})
+
+		const response = await POST(
+			createRequest({
+				...validBody,
+				recurrence: { count: 8 }
+			})
+		)
+		const message = 'Цей час уже зайнятий: середа, 15 липня 2099 р.'
+
+		expect(response.status).toBe(409)
+		expect(await response.json()).toEqual({
+			message,
+			fieldErrors: {
+				startAt: [message],
+				endAt: [message]
+			}
+		})
+	})
+
+	it('creates a recurring series for the authenticated user', async () => {
+		const seriesId = 'clh4k3j2l0003qwer1234asdf'
+		const bookings = [
+			{
+				id: 'clh4k3j2l0002qwer1234asdf',
+				title: validBody.title,
+				startAt: new Date(validBody.startAt),
+				endAt: new Date(validBody.endAt),
+				roomId,
+				recurringSeriesId: seriesId,
+				user: {
+					id: user.id,
+					name: user.name
+				}
+			}
+		]
+
+		createRecurringBookingMock.mockResolvedValue({
+			ok: true,
+			seriesId,
+			bookings
+		})
+
+		const response = await POST(
+			createRequest({
+				...validBody,
+				recurrence: { count: 8 }
+			})
+		)
+
+		expect(response.status).toBe(201)
+		expect(await response.json()).toEqual({
+			seriesId,
+			bookings: [
+				{
+					...bookings[0],
+					startAt: validBody.startAt,
+					endAt: validBody.endAt
+				}
+			]
+		})
+		expect(createRecurringBookingMock).toHaveBeenCalledWith(
+			{
+				...validBody,
+				startAt: new Date(validBody.startAt),
+				endAt: new Date(validBody.endAt),
+				repeatCount: 8
+			},
+			user
+		)
+		expect(createBookingMock).not.toHaveBeenCalled()
 	})
 
 	it('returns 500 without exposing an internal error', async () => {

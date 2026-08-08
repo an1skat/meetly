@@ -1,3 +1,4 @@
+import { cancelBookingQuerySchema } from '@/modules/bookings/schemas'
 import { getCurrentUser } from '@/server/auth/session'
 import {
 	cancelBooking,
@@ -23,7 +24,7 @@ const failureResponses: Record<
 }
 
 export async function DELETE(
-	_request: Request,
+	request: Request,
 	{ params }: { params: Promise<{ id: string }> }
 ) {
 	try {
@@ -36,8 +37,20 @@ export async function DELETE(
 			)
 		}
 
+		const url = new URL(request.url)
+		const parsedQuery = cancelBookingQuerySchema.safeParse({
+			scope: url.searchParams.get('scope') ?? undefined
+		})
+
+		if (!parsedQuery.success) {
+			return Response.json(
+				{ message: 'Некоректний тип скасування' },
+				{ status: 400 }
+			)
+		}
+
 		const { id } = await params
-		const result = await cancelBooking(id, user.id)
+		const result = await cancelBooking(id, user.id, parsedQuery.data.scope)
 
 		if (!result.ok) {
 			const response = failureResponses[result.reason]

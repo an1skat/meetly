@@ -151,7 +151,8 @@ describe('room schedule dates', () => {
 					startAt: '2026-07-30T08:00:00.000Z',
 					endAt: '2026-07-30T12:00:00.000Z',
 					authorName: 'Андрій',
-					isOwn: true
+					isOwn: true,
+					recurringSeriesId: null
 				}
 			],
 			days,
