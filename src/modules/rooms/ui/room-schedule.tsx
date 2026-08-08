@@ -11,6 +11,7 @@ import {
 	formatWeekLabel,
 	getTimeZoneDayStart,
 	getWeekDays,
+	getWeekOffset,
 	isOfficeTimeZone,
 	OFFICE_TIME_ZONE,
 	type ScheduleBooking
@@ -27,6 +28,8 @@ type RoomSummary = {
 type RoomScheduleProps = {
 	rooms: RoomSummary[]
 	initialNow: string
+	initialRoomId?: string
+	initialWeek?: string
 }
 
 const subscribeToTimeZone = () => () => {}
@@ -62,15 +65,37 @@ async function fetchRoomBookings(roomId: string, from: string, to: string) {
 	return payload.bookings
 }
 
-export function RoomSchedule({ rooms, initialNow }: RoomScheduleProps) {
-	const [selectedRoomId, setSelectedRoomId] = useState(rooms[0]?.id ?? '')
+export function RoomSchedule({
+	rooms,
+	initialNow,
+	initialRoomId,
+	initialWeek
+}: RoomScheduleProps) {
+	const firstRoomId =
+		initialRoomId && rooms.some(room => room.id === initialRoomId)
+			? initialRoomId
+			: (rooms[0]?.id ?? '')
+
+	const [selectedRoomId, setSelectedRoomId] = useState(firstRoomId)
 	const [selectedStartAt, setSelectedStartAt] = useState<Date | null>(null)
 	const [bookingToCancel, setBookingToCancel] = useState<Pick<
 		ScheduleBooking,
 		'id' | 'title'
 	> | null>(null)
 	const [successMessage, setSuccessMessage] = useState<string | null>(null)
-	const [weekOffset, setWeekOffset] = useState(0)
+	const [weekOffset, setWeekOffset] = useState(() => {
+		if (!initialWeek) {
+			return 0
+		}
+
+		const target = new Date(initialWeek)
+
+		if (Number.isNaN(target.getTime())) {
+			return 0
+		}
+
+		return getWeekOffset(new Date(initialNow), target, OFFICE_TIME_ZONE)
+	})
 	const [now, setNow] = useState(() => new Date(initialNow))
 	const browserTimeZone = useSyncExternalStore(
 		subscribeToTimeZone,
@@ -110,6 +135,20 @@ export function RoomSchedule({ rooms, initialNow }: RoomScheduleProps) {
 			</Alert>
 		)
 	}
+
+	useEffect(() => {
+		if (!initialWeek) {
+			return
+		}
+
+		const target = new Date(initialWeek)
+
+		if (Number.isNaN(target.getTime())) {
+			return
+		}
+
+		setWeekOffset(getWeekOffset(new Date(initialNow), target, timeZone))
+	}, [initialNow, initialWeek, timeZone])
 
 	return (
 		<div className="space-y-5">

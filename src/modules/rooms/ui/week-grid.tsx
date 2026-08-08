@@ -329,7 +329,7 @@ export function WeekGrid({
 									<span className="block truncate opacity-90">
 										{segment.authorName}
 									</span>
-									{segment.isOwn && (
+									{segment.isOwn && new Date(segment.startAt) > now && (
 										<button
 											type="button"
 											aria-label={`Скасувати бронювання «${segment.title}»`}

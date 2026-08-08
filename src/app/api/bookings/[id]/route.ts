@@ -15,6 +15,10 @@ const failureResponses: Record<
 	forbidden: {
 		status: 403,
 		message: 'Ви можете скасувати лише власне бронювання'
+	},
+	past: {
+		status: 409,
+		message: 'Бронювання, яке вже почалося, не можна скасувати'
 	}
 }
 

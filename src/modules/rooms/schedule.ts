@@ -13,8 +13,7 @@ export {
 	WORKDAY_START_MINUTES
 }
 
-const SLOT_COUNT =
-	(WORKDAY_END_MINUTES - WORKDAY_START_MINUTES) / SLOT_MINUTES
+const SLOT_COUNT = (WORKDAY_END_MINUTES - WORKDAY_START_MINUTES) / SLOT_MINUTES
 const DAY_MINUTES = 24 * 60
 const DAY_SLOT_COUNT = DAY_MINUTES / SLOT_MINUTES
 
@@ -101,11 +100,11 @@ function getDateParts(date: Date, timeZone: string) {
 
 	if (!formatter) {
 		formatter = new Intl.DateTimeFormat('en-CA', {
-				timeZone,
-				year: 'numeric',
-				month: '2-digit',
-				day: '2-digit'
-			})
+			timeZone,
+			year: 'numeric',
+			month: '2-digit',
+			day: '2-digit'
+		})
 		dateFormatters.set(timeZone, formatter)
 	}
 
@@ -126,12 +125,12 @@ function getTimeParts(date: Date, timeZone: string) {
 
 	if (!formatter) {
 		formatter = new Intl.DateTimeFormat('en-GB', {
-				timeZone,
-				hour: '2-digit',
-				minute: '2-digit',
-				second: '2-digit',
-				hourCycle: 'h23'
-			})
+			timeZone,
+			hour: '2-digit',
+			minute: '2-digit',
+			second: '2-digit',
+			hourCycle: 'h23'
+		})
 		timeFormatters.set(timeZone, formatter)
 	}
 
@@ -162,10 +161,8 @@ function formatMinutes(totalMinutes: number) {
 	return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
 }
 
-export const TIME_LABELS = Array.from(
-	{ length: SLOT_COUNT + 1 },
-	(_, index) =>
-		formatMinutes(WORKDAY_START_MINUTES + index * SLOT_MINUTES)
+export const TIME_LABELS = Array.from({ length: SLOT_COUNT + 1 }, (_, index) =>
+	formatMinutes(WORKDAY_START_MINUTES + index * SLOT_MINUTES)
 )
 
 export const TIME_SLOTS = TIME_LABELS.slice(0, -1)
@@ -200,9 +197,7 @@ export function getWeekDays(
 	const daysSinceMonday = (officeDate.getUTCDay() + 6) % 7
 	const monday = new Date(officeDate)
 
-	monday.setUTCDate(
-		monday.getUTCDate() - daysSinceMonday + weekOffset * 7
-	)
+	monday.setUTCDate(monday.getUTCDate() - daysSinceMonday + weekOffset * 7)
 
 	return Array.from({ length: 7 }, (_, index) => {
 		const date = new Date(monday)
@@ -291,9 +286,7 @@ export function getBookingSegments(
 			const segmentStart = new Date(
 				Math.max(startAt.getTime(), dayStart.getTime())
 			)
-			const segmentEnd = new Date(
-				Math.min(endAt.getTime(), dayEnd.getTime())
-			)
+			const segmentEnd = new Date(Math.min(endAt.getTime(), dayEnd.getTime()))
 
 			if (segmentStart >= segmentEnd) {
 				return []
@@ -317,11 +310,7 @@ export function getBookingSegments(
 	)
 }
 
-export function getScheduleSlots(
-	days: WeekDay[],
-	timeZone: string,
-	now: Date
-) {
+export function getScheduleSlots(days: WeekDay[], timeZone: string, now: Date) {
 	const slots = getOfficeSlotSegments(days, timeZone)
 
 	return {
@@ -383,11 +372,8 @@ function getOfficeSlotSegments(days: WeekDay[], timeZone: string) {
 		const endAt = new Date(startTime + slotMilliseconds)
 
 		if (
-			validateBookingTime(
-				startAt,
-				endAt,
-				new Date(startAt.getTime() - 1)
-			) === null
+			validateBookingTime(startAt, endAt, new Date(startAt.getTime() - 1)) ===
+			null
 		) {
 			slots.push({
 				id: startAt.toISOString(),
@@ -436,4 +422,23 @@ function getDateInTimeZone(target: Date, timeZone: string) {
 
 export function isOfficeTimeZone(timeZone: string) {
 	return timeZone === OFFICE_TIME_ZONE || timeZone === 'Europe/Kiev'
+}
+
+export function getWeekOffset(
+	reference: Date,
+	target: Date,
+	timeZone = OFFICE_TIME_ZONE
+) {
+	const referenceMonday = getWeekDays(reference, 0, timeZone)[0]?.date
+	const targetMonday = getWeekDays(target, 0, timeZone)[0]?.date
+
+	if (!referenceMonday || !targetMonday) {
+		return 0
+	}
+
+	const weekMilliseconds = 7 * 24 * 60 * 60 * 1000
+
+	return Math.round(
+		(targetMonday.getTime() - referenceMonday.getTime()) / weekMilliseconds
+	)
 }

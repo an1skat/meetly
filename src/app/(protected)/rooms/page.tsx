@@ -2,9 +2,26 @@ import { RoomSchedule } from '@/modules/rooms/ui/room-schedule'
 import { requireUser } from '@/server/auth/session'
 import { getRooms } from '@/server/rooms/read'
 
-export default async function RoomsPage() {
+type RoomsPageProps = {
+	searchParams: Promise<{
+		roomId?: string | string[]
+		week?: string | string[]
+	}>
+}
+
+export default async function RoomsPage({ searchParams }: RoomsPageProps) {
 	await requireUser()
-	const rooms = await getRooms()
+
+	const [rooms, query] = await Promise.all([getRooms(), searchParams])
+
+	const initialRoomId =
+		typeof query.roomId === 'string' ? query.roomId : undefined
+
+	const initialWeek =
+		typeof query.week === 'string' &&
+		!Number.isNaN(new Date(query.week).getTime())
+			? query.week
+			: undefined
 
 	return (
 		<section className="space-y-6">
@@ -18,6 +35,8 @@ export default async function RoomsPage() {
 			<RoomSchedule
 				rooms={rooms}
 				initialNow={new Date().toISOString()}
+				initialRoomId={initialRoomId}
+				initialWeek={initialWeek}
 			/>
 		</section>
 	)
