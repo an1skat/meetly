@@ -83,6 +83,10 @@ export function RoomSchedule({
 		'id' | 'title'
 	> | null>(null)
 	const [successMessage, setSuccessMessage] = useState<string | null>(null)
+	const [prevWeekParams, setPrevWeekParams] = useState({
+		initialWeek,
+		timeZone: OFFICE_TIME_ZONE
+	})
 	const [weekOffset, setWeekOffset] = useState(() => {
 		if (!initialWeek) {
 			return 0
@@ -114,6 +118,22 @@ export function RoomSchedule({
 	const selectedRoom =
 		rooms.find(room => room.id === selectedRoomId) ?? rooms[0]
 	const timeZone = browserTimeZone ?? OFFICE_TIME_ZONE
+
+	if (
+		prevWeekParams.initialWeek !== initialWeek ||
+		prevWeekParams.timeZone !== timeZone
+	) {
+		setPrevWeekParams({ initialWeek, timeZone })
+
+		if (initialWeek) {
+			const target = new Date(initialWeek)
+
+			if (!Number.isNaN(target.getTime())) {
+				setWeekOffset(getWeekOffset(new Date(initialNow), target, timeZone))
+			}
+		}
+	}
+
 	const days = getWeekDays(now, weekOffset, timeZone)
 	const weekAfter = new Date(days[0]!.date)
 
@@ -135,20 +155,6 @@ export function RoomSchedule({
 			</Alert>
 		)
 	}
-
-	useEffect(() => {
-		if (!initialWeek) {
-			return
-		}
-
-		const target = new Date(initialWeek)
-
-		if (Number.isNaN(target.getTime())) {
-			return
-		}
-
-		setWeekOffset(getWeekOffset(new Date(initialNow), target, timeZone))
-	}, [initialNow, initialWeek, timeZone])
 
 	return (
 		<div className="space-y-5">

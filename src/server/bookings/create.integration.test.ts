@@ -1,5 +1,12 @@
 import { randomUUID } from 'node:crypto'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import {
+	afterAll,
+	beforeAll,
+	beforeEach,
+	describe,
+	expect,
+	it
+} from 'vitest'
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL
 const describeDatabase = testDatabaseUrl ? describe : describe.skip
@@ -7,6 +14,7 @@ const describeDatabase = testDatabaseUrl ? describe : describe.skip
 let prisma: (typeof import('@/server/db/prisma'))['prisma'] | undefined
 
 let createBooking: (typeof import('./create'))['createBooking'] | undefined
+let cancelBooking: (typeof import('./cancel'))['cancelBooking'] | undefined
 
 const marker = randomUUID()
 const roomName = `Race test room ${marker}`
@@ -23,6 +31,7 @@ describeDatabase('booking concurrency', () => {
 		process.env.DATABASE_URL = testDatabaseUrl!
 		;({ prisma } = await import('@/server/db/prisma'))
 		;({ createBooking } = await import('./create'))
+		;({ cancelBooking } = await import('./cancel'))
 
 		const [room, firstUser, secondUser] = await Promise.all([
 			prisma.room.create({
@@ -50,6 +59,18 @@ describeDatabase('booking concurrency', () => {
 
 		roomId = room.id
 		userIds = [firstUser.id, secondUser.id]
+	})
+
+	beforeEach(async () => {
+		if (!prisma) {
+			return
+		}
+
+		await prisma.booking.deleteMany({
+			where: {
+				roomId
+			}
+		})
 	})
 
 	afterAll(async () => {
@@ -86,6 +107,166 @@ describeDatabase('booking concurrency', () => {
 		})
 
 		await prisma.$disconnect()
+	})
+
+	it('creates a valid booking', async () => {
+		if (!prisma || !createBooking) {
+			throw new Error('Integration test was not initialized')
+		}
+
+		const result = await createBooking(
+			{
+				roomId,
+				title: 'Планування',
+				startAt: new Date('2099-07-01T06:00:00.000Z'),
+				endAt: new Date('2099-07-01T07:00:00.000Z')
+			},
+			userIds[0]
+		)
+
+		expect(result.ok).toBe(true)
+
+		await expect(
+			prisma.booking.count({ where: { roomId } })
+		).resolves.toBe(1)
+	})
+
+	it('cancels an owned booking', async () => {
+		if (!prisma || !createBooking || !cancelBooking) {
+			throw new Error('Integration test was not initialized')
+		}
+
+		const created = await createBooking(
+			{
+				roomId,
+				title: 'Owned booking',
+				startAt: new Date('2099-07-02T06:00:00.000Z'),
+				endAt: new Date('2099-07-02T07:00:00.000Z')
+			},
+			userIds[0]
+		)
+
+		if (!created.ok) {
+			throw new Error('Booking was not created')
+		}
+
+		await expect(
+			cancelBooking(created.booking.id, userIds[0])
+		).resolves.toEqual({ ok: true })
+
+		await expect(
+			prisma.booking.findUnique({
+				where: { id: created.booking.id }
+			})
+		).resolves.toBeNull()
+	})
+
+	it('forbids cancelling another user booking', async () => {
+		if (!prisma || !createBooking || !cancelBooking) {
+			throw new Error('Integration test was not initialized')
+		}
+
+		const created = await createBooking(
+			{
+				roomId,
+				title: 'Foreign booking',
+				startAt: new Date('2099-07-03T06:00:00.000Z'),
+				endAt: new Date('2099-07-03T07:00:00.000Z')
+			},
+			userIds[0]
+		)
+
+		if (!created.ok) {
+			throw new Error('Booking was not created')
+		}
+
+		await expect(
+			cancelBooking(created.booking.id, userIds[1])
+		).resolves.toEqual({
+			ok: false,
+			reason: 'forbidden'
+		})
+
+		await expect(
+			prisma.booking.findUnique({
+				where: { id: created.booking.id }
+			})
+		).resolves.not.toBeNull()
+	})
+
+	it('rejects a booking in the past', async () => {
+		if (!createBooking) {
+			throw new Error('Integration test was not initialized')
+		}
+
+		await expect(
+			createBooking(
+				{
+					roomId,
+					title: 'Past booking',
+					startAt: new Date('2020-07-01T06:00:00.000Z'),
+					endAt: new Date('2020-07-01T07:00:00.000Z')
+				},
+				userIds[0]
+			)
+		).resolves.toEqual({
+			ok: false,
+			reason: 'past'
+		})
+	})
+
+	it('rejects a booking outside office hours', async () => {
+		if (!createBooking) {
+			throw new Error('Integration test was not initialized')
+		}
+
+		await expect(
+			createBooking(
+				{
+					roomId,
+					title: 'Too early',
+					startAt: new Date('2099-07-01T05:30:00.000Z'),
+					endAt: new Date('2099-07-01T06:30:00.000Z')
+				},
+				userIds[0]
+			)
+		).resolves.toEqual({
+			ok: false,
+			reason: 'office-hours'
+		})
+	})
+
+	it('rejects overlapping occupied slots', async () => {
+		if (!createBooking) {
+			throw new Error('Integration test was not initialized')
+		}
+
+		const first = await createBooking(
+			{
+				roomId,
+				title: 'First',
+				startAt: new Date('2099-07-04T06:00:00.000Z'),
+				endAt: new Date('2099-07-04T07:00:00.000Z')
+			},
+			userIds[0]
+		)
+
+		expect(first.ok).toBe(true)
+
+		await expect(
+			createBooking(
+				{
+					roomId,
+					title: 'Second',
+					startAt: new Date('2099-07-04T06:30:00.000Z'),
+					endAt: new Date('2099-07-04T07:30:00.000Z')
+				},
+				userIds[1]
+			)
+		).resolves.toEqual({
+			ok: false,
+			reason: 'slot-taken'
+		})
 	})
 
 	it('stores exactly one booking when two requests target the same slots', async () => {
