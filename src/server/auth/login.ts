@@ -6,7 +6,10 @@ import { createSession } from './session'
 const DUMMY_PASSWORD_HASH =
 	'$2b$12$RifiWlmwJuPvLDkKws2H5uOUto/UY6.FHb4O65yIfkMc.qs50yhKK'
 
-export async function loginUser({ email, password }: LoginInput) {
+export async function authenticateUser({
+	email,
+	password
+}: LoginInput) {
 	const user = await prisma.user.findUnique({
 		where: {
 			email
@@ -19,10 +22,29 @@ export async function loginUser({ email, password }: LoginInput) {
 		}
 	})
 
-	const passwordHash = user?.passwordHash ?? DUMMY_PASSWORD_HASH
-	const passwordIsValid = await verifyPassword(password, passwordHash)
+	const passwordHash =
+		user?.passwordHash ?? DUMMY_PASSWORD_HASH
+
+	const passwordIsValid = await verifyPassword(
+		password,
+		passwordHash
+	)
 
 	if (!user || !passwordIsValid) {
+		return null
+	}
+
+	return {
+		id: user.id,
+		name: user.name,
+		email: user.email
+	}
+}
+
+export async function loginUser(input: LoginInput) {
+	const user = await authenticateUser(input)
+
+	if (!user) {
 		return {
 			ok: false as const
 		}
@@ -32,10 +54,6 @@ export async function loginUser({ email, password }: LoginInput) {
 
 	return {
 		ok: true as const,
-		user: {
-			id: user.id,
-			name: user.name,
-			email: user.email
-		}
+		user
 	}
 }
