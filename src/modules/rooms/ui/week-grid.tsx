@@ -1,9 +1,6 @@
 'use client'
 
-import {
-	doBookingTimesOverlap,
-	SLOT_MINUTES
-} from '@/modules/bookings/time'
+import { doBookingTimesOverlap, SLOT_MINUTES } from '@/modules/bookings/time'
 import { useEffect, useRef } from 'react'
 import {
 	DISPLAY_TIME_LABELS,
@@ -14,7 +11,7 @@ import {
 	type BookingSegment,
 	type ScheduleBooking,
 	type WeekDay
-} from './schedule'
+} from '../schedule'
 
 type WeekGridProps = {
 	bookings: ScheduleBooking[]
@@ -73,8 +70,7 @@ export function layoutBookingSegments(
 
 	for (const daySegments of segmentsByDay.values()) {
 		const sorted = daySegments.toSorted(
-			(a, b) =>
-				new Date(a.startAt).getTime() - new Date(b.startAt).getTime()
+			(a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime()
 		)
 		let cluster: BookingSegment[] = []
 		let clusterEnd = Number.NEGATIVE_INFINITY
@@ -137,11 +133,7 @@ export function WeekGrid({
 	const lastAutoScrollKeyRef = useRef('')
 	const marker = getCurrentTimeMarker(now, days, timeZone)
 	const rawBookingSegments = getBookingSegments(bookings, days, timeZone)
-	const { bookableSlots, displayRange } = getScheduleSlots(
-		days,
-		timeZone,
-		now
-	)
+	const { bookableSlots, displayRange } = getScheduleSlots(days, timeZone, now)
 	const rawFreeSlotSegments = bookableSlots.filter(
 		slot =>
 			!bookings.some(booking =>
@@ -175,8 +167,7 @@ export function WeekGrid({
 		marker.percentage <= rangeStart + rangeHeight
 			? {
 					...marker,
-					percentage:
-						((marker.percentage - rangeStart) / rangeHeight) * 100
+					percentage: ((marker.percentage - rangeStart) / rangeHeight) * 100
 				}
 			: null
 	const gridHeight = timeSlots.length * SLOT_HEIGHT
@@ -204,7 +195,7 @@ export function WeekGrid({
 
 	return (
 		<div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
-			<div className="min-w-[880px]">
+			<div className="min-w-220">
 				<div className="grid grid-cols-[5rem_1fr] border-b border-zinc-200">
 					<div className="flex items-center justify-end bg-zinc-50 px-3 text-xs font-medium uppercase tracking-wide text-zinc-500">
 						Час
@@ -228,9 +219,7 @@ export function WeekGrid({
 								<span className="mt-1 block text-sm font-semibold">
 									{day.dateLabel}
 								</span>
-								{day.isPast && (
-									<span className="sr-only">Минулий день</span>
-								)}
+								{day.isPast && <span className="sr-only">Минулий день</span>}
 								{day.isToday && <span className="sr-only">Сьогодні</span>}
 							</div>
 						))}
@@ -239,7 +228,7 @@ export function WeekGrid({
 
 				<div
 					ref={scrollContainerRef}
-					className="grid max-h-[36rem] grid-cols-[5rem_1fr] overflow-y-auto"
+					className="grid max-h-144 grid-cols-[5rem_1fr] overflow-y-auto"
 				>
 					<div
 						className="relative border-r border-zinc-200 bg-zinc-50"
@@ -294,7 +283,7 @@ export function WeekGrid({
 									key={`${segment.id}-${segment.dayIndex}`}
 									type="button"
 									aria-label={label}
-									className="group absolute z-[1] flex items-center justify-center rounded-sm bg-emerald-50/80 text-emerald-700 outline-none transition-colors hover:bg-emerald-100 focus-visible:z-20 focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-inset"
+									className="group absolute z-1 flex items-center justify-center rounded-sm bg-emerald-50/80 text-emerald-700 outline-none transition-colors hover:bg-emerald-100 focus-visible:z-20 focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-inset"
 									style={{
 										top: `${segment.top}%`,
 										left: `${(segment.dayIndex / days.length) * 100}%`,
@@ -343,9 +332,7 @@ export function WeekGrid({
 									{segment.isOwn && (
 										<button
 											type="button"
-											aria-label={
-												`Скасувати бронювання «${segment.title}»`
-											}
+											aria-label={`Скасувати бронювання «${segment.title}»`}
 											className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded bg-white/20 text-sm leading-none outline-none hover:bg-white/30 focus-visible:ring-2 focus-visible:ring-white disabled:cursor-not-allowed disabled:opacity-60"
 											title="Скасувати бронювання"
 											onClick={() =>
@@ -373,7 +360,7 @@ export function WeekGrid({
 									width: `${100 / days.length}%`
 								}}
 							>
-								<span className="absolute -left-1 -top-[3px] h-2 w-2 rounded-full bg-red-500" />
+								<span className="absolute -left-1 -top-0.75 h-2 w-2 rounded-full bg-red-500" />
 							</div>
 						)}
 					</div>

@@ -1,4 +1,4 @@
-import { LogoutButton } from '@/modules/auth/logout-button'
+import { LogoutButton } from '@/modules/auth/ui/logout-button'
 import Link from 'next/link'
 
 type NavigationProps = {

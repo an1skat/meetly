@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { BookingSegment } from './schedule'
+import type { BookingSegment } from '../schedule'
 import { layoutBookingSegments } from './week-grid'
 
 function segment(

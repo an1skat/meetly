@@ -1,4 +1,4 @@
-import { RoomSchedule } from '@/modules/rooms/room-schedule'
+import { RoomSchedule } from '@/modules/rooms/ui/room-schedule'
 import { requireUser } from '@/server/auth/session'
 import { getRooms } from '@/server/rooms/read'
 

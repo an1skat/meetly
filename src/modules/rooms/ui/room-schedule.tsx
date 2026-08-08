@@ -3,8 +3,8 @@
 import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
-import { CancelBookingDialog } from '@/modules/bookings/cancel-booking-dialog'
-import { CreateBookingDialog } from '@/modules/bookings/create-booking-dialog'
+import { CancelBookingDialog } from '@/modules/bookings/ui/cancel-booking-dialog'
+import { CreateBookingDialog } from '@/modules/bookings/ui/create-booking-dialog'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import {
@@ -14,7 +14,7 @@ import {
 	isOfficeTimeZone,
 	OFFICE_TIME_ZONE,
 	type ScheduleBooking
-} from './schedule'
+} from '../schedule'
 import { WeekGrid } from './week-grid'
 
 type RoomSummary = {
@@ -51,9 +51,9 @@ async function fetchRoomBookings(roomId: string, from: string, to: string) {
 		throw new Error('Немає зв’язку із сервером. Спробуйте ще раз.')
 	}
 
-	const payload = (await response.json().catch(() => null)) as
-		| RoomBookingsResponse
-		| null
+	const payload = (await response
+		.json()
+		.catch(() => null)) as RoomBookingsResponse | null
 
 	if (!response.ok || !payload?.bookings) {
 		throw new Error(payload?.message ?? 'Не вдалося отримати бронювання')
@@ -65,9 +65,10 @@ async function fetchRoomBookings(roomId: string, from: string, to: string) {
 export function RoomSchedule({ rooms, initialNow }: RoomScheduleProps) {
 	const [selectedRoomId, setSelectedRoomId] = useState(rooms[0]?.id ?? '')
 	const [selectedStartAt, setSelectedStartAt] = useState<Date | null>(null)
-	const [bookingToCancel, setBookingToCancel] = useState<
-		Pick<ScheduleBooking, 'id' | 'title'> | null
-	>(null)
+	const [bookingToCancel, setBookingToCancel] = useState<Pick<
+		ScheduleBooking,
+		'id' | 'title'
+	> | null>(null)
 	const [successMessage, setSuccessMessage] = useState<string | null>(null)
 	const [weekOffset, setWeekOffset] = useState(0)
 	const [now, setNow] = useState(() => new Date(initialNow))
@@ -85,7 +86,8 @@ export function RoomSchedule({ rooms, initialNow }: RoomScheduleProps) {
 		return () => window.clearInterval(intervalId)
 	}, [])
 
-	const selectedRoom = rooms.find(room => room.id === selectedRoomId) ?? rooms[0]
+	const selectedRoom =
+		rooms.find(room => room.id === selectedRoomId) ?? rooms[0]
 	const timeZone = browserTimeZone ?? OFFICE_TIME_ZONE
 	const days = getWeekDays(now, weekOffset, timeZone)
 	const weekAfter = new Date(days[0]!.date)
@@ -165,9 +167,7 @@ export function RoomSchedule({ rooms, initialNow }: RoomScheduleProps) {
 				</Alert>
 			)}
 
-			{successMessage && (
-				<Alert variant="success">{successMessage}</Alert>
-			)}
+			{successMessage && <Alert variant="success">{successMessage}</Alert>}
 
 			<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 				<div>
@@ -255,8 +255,8 @@ export function RoomSchedule({ rooms, initialNow }: RoomScheduleProps) {
 							setSuccessMessage(null)
 						}}
 					/>
-					</>
-				)}
+				</>
+			)}
 
 			{selectedStartAt && (
 				<CreateBookingDialog

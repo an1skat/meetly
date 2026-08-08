@@ -1,4 +1,4 @@
-import { RegisterForm } from '@/modules/auth/register-form'
+import { RegisterForm } from '@/modules/auth/ui/register-form'
 import Link from 'next/link'
 
 export default function RegisterPage() {
@@ -11,9 +11,7 @@ export default function RegisterPage() {
 				>
 					Meetly
 				</Link>
-				<h1 className="mt-6 text-2xl font-semibold">
-					Реєстрація
-				</h1>
+				<h1 className="mt-6 text-2xl font-semibold">Реєстрація</h1>
 				<p className="mt-2 text-sm text-zinc-600">
 					Створіть обліковий запис для бронювання кімнат.
 				</p>

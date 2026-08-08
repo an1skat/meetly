@@ -1,5 +1,5 @@
 import { Alert } from '@/components/ui/alert'
-import { LoginForm } from '@/modules/auth/login-form'
+import { LoginForm } from '@/modules/auth/ui/login-form'
 import Link from 'next/link'
 
 type LoginPageProps = {
@@ -8,9 +8,7 @@ type LoginPageProps = {
 	}>
 }
 
-export default async function LoginPage({
-	searchParams
-}: LoginPageProps) {
+export default async function LoginPage({ searchParams }: LoginPageProps) {
 	const { registered } = await searchParams
 
 	return (
@@ -22,9 +20,7 @@ export default async function LoginPage({
 				>
 					Meetly
 				</Link>
-				<h1 className="mt-6 text-2xl font-semibold">
-					Вхід
-				</h1>
+				<h1 className="mt-6 text-2xl font-semibold">Вхід</h1>
 				<p className="mt-2 text-sm text-zinc-600">
 					Увійдіть, щоб переглядати розклад і свої бронювання.
 				</p>
