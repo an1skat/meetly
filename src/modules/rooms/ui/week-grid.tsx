@@ -1,6 +1,6 @@
 'use client'
 
-import { doBookingTimesOverlap, SLOT_MINUTES } from '@/modules/bookings/time'
+import { intervalsOverlap, SLOT_MINUTES } from '@/modules/bookings/time'
 import { useEffect, useRef } from 'react'
 import {
 	DISPLAY_TIME_LABELS,
@@ -137,7 +137,7 @@ export function WeekGrid({
 	const rawFreeSlotSegments = bookableSlots.filter(
 		slot =>
 			!bookings.some(booking =>
-				doBookingTimesOverlap(
+				intervalsOverlap(
 					new Date(slot.startAt),
 					new Date(slot.endAt),
 					new Date(booking.startAt),

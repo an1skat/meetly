@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { createBookingSchema } from './schemas'
 import {
-	doBookingTimesOverlap,
 	getAvailableBookingDurations,
 	hasValidBookingDuration,
+	intervalsOverlap,
 	isFutureTime,
 	isThirtyMinuteAligned,
 	isWithinOfficeHours,
@@ -12,28 +12,95 @@ import {
 	validateBookingTime
 } from './time'
 
-describe('booking interval overlap', () => {
-	const at = (time: string) => new Date(`2026-07-30T${time}:00.000Z`)
-
-	it.each([
-		['partial overlap', '06:00', '07:00', '06:30', '07:30'],
-		['same interval', '06:00', '07:00', '06:00', '07:00'],
-		['contained interval', '06:00', '08:00', '06:30', '07:00']
-	])('detects %s', (_, startA, endA, startB, endB) => {
-		expect(
-			doBookingTimesOverlap(at(startA), at(endA), at(startB), at(endB))
-		).toBe(true)
-	})
+describe('intervalsOverlap', () => {
+	const at = (day: string, time: string) =>
+		new Date(`2026-07-${day}T${time}:00.000Z`)
 
 	it('allows adjacent intervals', () => {
 		expect(
-			doBookingTimesOverlap(at('06:00'), at('07:00'), at('07:00'), at('08:00'))
+			intervalsOverlap(
+				at('30', '10:00'),
+				at('30', '11:00'),
+				at('30', '11:00'),
+				at('30', '12:00')
+			)
 		).toBe(false)
 	})
 
-	it('rejects invalid intervals instead of marking a slot as occupied', () => {
+	it('detects a partial overlap', () => {
 		expect(
-			doBookingTimesOverlap(at('07:00'), at('06:00'), at('06:30'), at('07:30'))
+			intervalsOverlap(
+				at('30', '10:00'),
+				at('30', '11:00'),
+				at('30', '10:30'),
+				at('30', '11:30')
+			)
+		).toBe(true)
+	})
+
+	it('detects an exact duplicate', () => {
+		expect(
+			intervalsOverlap(
+				at('30', '10:00'),
+				at('30', '11:00'),
+				at('30', '10:00'),
+				at('30', '11:00')
+			)
+		).toBe(true)
+	})
+
+	it('detects one booking inside another', () => {
+		expect(
+			intervalsOverlap(
+				at('30', '10:00'),
+				at('30', '12:00'),
+				at('30', '10:30'),
+				at('30', '11:00')
+			)
+		).toBe(true)
+	})
+
+	it('does not overlap on different days', () => {
+		expect(
+			intervalsOverlap(
+				at('30', '10:00'),
+				at('30', '11:00'),
+				at('31', '10:00'),
+				at('31', '11:00')
+			)
+		).toBe(false)
+	})
+
+	it('detects intervals with the same start', () => {
+		expect(
+			intervalsOverlap(
+				at('30', '10:00'),
+				at('30', '11:00'),
+				at('30', '10:00'),
+				at('30', '10:30')
+			)
+		).toBe(true)
+	})
+
+	it('detects intervals with the same end', () => {
+		expect(
+			intervalsOverlap(
+				at('30', '10:00'),
+				at('30', '11:00'),
+				at('30', '10:30'),
+				at('30', '11:00')
+			)
+		).toBe(true)
+	})
+
+	it('rejects an invalid interval', () => {
+		expect(
+			intervalsOverlap(
+				at('30', '11:00'),
+				at('30', '10:00'),
+				at('30', '10:30'),
+				at('30', '11:30')
+			)
 		).toBe(false)
 	})
 })

@@ -35,7 +35,10 @@ const transactionClient = {
 
 beforeEach(() => {
 	vi.resetAllMocks()
-	bookingFindUniqueMock.mockResolvedValue({ userId })
+	bookingFindUniqueMock.mockResolvedValue({
+		userId,
+		startAt: new Date('2099-01-01T00:00:00.000Z')
+	})
 	bookingSlotDeleteManyMock.mockResolvedValue({ count: 2 })
 	bookingDeleteMock.mockResolvedValue({ id: bookingId })
 	transactionMock.mockImplementation(
@@ -57,7 +60,10 @@ describe('cancelBooking', () => {
 	})
 
 	it('forbids deleting another user booking', async () => {
-		bookingFindUniqueMock.mockResolvedValue({ userId: 'another-user-id' })
+		bookingFindUniqueMock.mockResolvedValue({
+			userId: 'another-user-id',
+			startAt: new Date('2099-01-01T00:00:00.000Z')
+		})
 
 		await expect(cancelBooking(bookingId, userId)).resolves.toEqual({
 			ok: false,
@@ -72,7 +78,7 @@ describe('cancelBooking', () => {
 
 		expect(bookingFindUniqueMock).toHaveBeenCalledWith({
 			where: { id: bookingId },
-			select: { userId: true }
+			select: { userId: true, startAt: true }
 		})
 		expect(bookingSlotDeleteManyMock).toHaveBeenCalledWith({
 			where: { bookingId }

@@ -119,7 +119,7 @@ export function hasValidBookingDuration(startAt: Date, endAt: Date) {
 	)
 }
 
-export function doBookingTimesOverlap(
+export function intervalsOverlap(
 	startA: Date,
 	endA: Date,
 	startB: Date,
@@ -149,7 +149,7 @@ export function getAvailableBookingDurations(
 				new Date(startAt.getTime() - 1)
 			) === null &&
 			!bookings.some(booking =>
-				doBookingTimesOverlap(
+				intervalsOverlap(
 					startAt,
 					endAt,
 					booking.startAt,
