@@ -27,6 +27,7 @@ export type CreatedBooking = Prisma.BookingGetPayload<{
 
 export type CreateBookingFailureReason =
 	| BookingTimeValidationError
+	| 'email-not-verified'
 	| 'room-not-found'
 	| 'slot-taken'
 
@@ -42,11 +43,23 @@ export type CreateBookingResult =
 
 class RoomNotFoundError extends Error {}
 
+type BookingActor = {
+	id: string
+	emailVerifiedAt: Date | null
+}
+
 export async function createBooking(
 	input: CreateBookingInput,
-	userId: string,
+	actor: BookingActor,
 	now = new Date()
 ): Promise<CreateBookingResult> {
+	if (!actor.emailVerifiedAt) {
+		return {
+			ok: false,
+			reason: 'email-not-verified'
+		}
+	}
+
 	const validationError = validateBookingTime(input.startAt, input.endAt, now)
 
 	if (validationError) {
@@ -85,7 +98,7 @@ export async function createBooking(
 					endAt: input.endAt,
 					user: {
 						connect: {
-							id: userId
+							id: actor.id
 						}
 					},
 					room: {

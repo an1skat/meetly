@@ -1,6 +1,7 @@
 import { registerSchema } from '@/modules/auth/schemas'
 import { logDevEmailVerificationLink } from '@/server/auth/email-verification'
 import { registerUser } from '@/server/auth/register'
+import { createSession } from '@/server/auth/session'
 import z from 'zod'
 
 export async function POST(request: Request) {
@@ -31,6 +32,8 @@ export async function POST(request: Request) {
 				{ status: 409 }
 			)
 		}
+
+		await createSession(result.user.id)
 
 		logDevEmailVerificationLink(request.url, {
 			email: result.user.email,

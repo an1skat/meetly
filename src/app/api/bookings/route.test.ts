@@ -19,7 +19,8 @@ const roomId = 'clh4k3j2l0000qwer1234asdf'
 const user = {
 	id: 'clh4k3j2l0001qwer1234asdf',
 	name: 'Андрій',
-	email: 'andriy@example.com'
+	email: 'andriy@example.com',
+	emailVerifiedAt: new Date('2026-01-01T00:00:00.000Z')
 }
 
 const validBody = {
@@ -76,6 +77,11 @@ describe('POST /api/bookings', () => {
 	})
 
 	it.each([
+		[
+			'email-not-verified',
+			403,
+			'Підтвердьте email перед створенням бронювання'
+		],
 		['order', 400, 'Час початку має бути раніше за час завершення'],
 		['slot', 400, 'Час має відповідати 30-хвилинній сітці'],
 		[
@@ -143,7 +149,7 @@ describe('POST /api/bookings', () => {
 				startAt: new Date(validBody.startAt),
 				endAt: new Date(validBody.endAt)
 			},
-			user.id
+			user
 		)
 	})
 

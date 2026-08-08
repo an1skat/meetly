@@ -1,6 +1,8 @@
 import { Alert } from '@/components/ui/alert'
 import { ResendVerificationForm } from '@/modules/auth/ui/resend-verification-form'
+import { getCurrentUser } from '@/server/auth/session'
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 
 type PageProps = {
 	searchParams: Promise<{
@@ -17,6 +19,12 @@ export default async function VerifyEmailResultPage({
 	const email = typeof query.email === 'string' ? query.email : ''
 
 	if (status === 'success') {
+		const user = await getCurrentUser()
+
+		if (user?.emailVerifiedAt) {
+			redirect('/rooms?emailVerified=1')
+		}
+
 		return (
 			<section className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
 				<Alert

@@ -29,9 +29,13 @@ const emails = [
 	`race-first-${marker}@example.com`,
 	`race-second-${marker}@example.com`
 ]
+const emailVerifiedAt = new Date('2026-01-01T00:00:00.000Z')
 
 let roomId = ''
-let userIds: string[] = []
+let actors: Array<{
+	id: string
+	emailVerifiedAt: Date
+}> = []
 
 describeDatabase('booking concurrency', () => {
 	beforeAll(async () => {
@@ -52,20 +56,25 @@ describeDatabase('booking concurrency', () => {
 				data: {
 					name: 'Перший користувач',
 					email: emails[0],
-					passwordHash: 'not-used-in-integration-test'
+					passwordHash: 'not-used-in-integration-test',
+					emailVerifiedAt
 				}
 			}),
 			prisma.user.create({
 				data: {
 					name: 'Другий користувач',
 					email: emails[1],
-					passwordHash: 'not-used-in-integration-test'
+					passwordHash: 'not-used-in-integration-test',
+					emailVerifiedAt
 				}
 			})
 		])
 
 		roomId = room.id
-		userIds = [firstUser.id, secondUser.id]
+		actors = [
+			{ id: firstUser.id, emailVerifiedAt },
+			{ id: secondUser.id, emailVerifiedAt }
+		]
 	})
 
 	beforeEach(async () => {
@@ -128,7 +137,7 @@ describeDatabase('booking concurrency', () => {
 				startAt: new Date('2099-07-01T06:00:00.000Z'),
 				endAt: new Date('2099-07-01T07:00:00.000Z')
 			},
-			userIds[0]
+			actors[0]
 		)
 
 		expect(result.ok).toBe(true)
@@ -150,7 +159,7 @@ describeDatabase('booking concurrency', () => {
 				startAt: new Date('2099-07-02T06:00:00.000Z'),
 				endAt: new Date('2099-07-02T07:00:00.000Z')
 			},
-			userIds[0]
+			actors[0]
 		)
 
 		if (!created.ok) {
@@ -158,7 +167,7 @@ describeDatabase('booking concurrency', () => {
 		}
 
 		await expect(
-			cancelBooking(created.booking.id, userIds[0])
+			cancelBooking(created.booking.id, actors[0].id)
 		).resolves.toEqual({ ok: true })
 
 		await expect(
@@ -180,7 +189,7 @@ describeDatabase('booking concurrency', () => {
 				startAt: new Date('2099-07-03T06:00:00.000Z'),
 				endAt: new Date('2099-07-03T07:00:00.000Z')
 			},
-			userIds[0]
+			actors[0]
 		)
 
 		if (!created.ok) {
@@ -188,7 +197,7 @@ describeDatabase('booking concurrency', () => {
 		}
 
 		await expect(
-			cancelBooking(created.booking.id, userIds[1])
+			cancelBooking(created.booking.id, actors[1].id)
 		).resolves.toEqual({
 			ok: false,
 			reason: 'forbidden'
@@ -214,7 +223,7 @@ describeDatabase('booking concurrency', () => {
 					startAt: new Date('2020-07-01T06:00:00.000Z'),
 					endAt: new Date('2020-07-01T07:00:00.000Z')
 				},
-				userIds[0]
+				actors[0]
 			)
 		).resolves.toEqual({
 			ok: false,
@@ -235,7 +244,7 @@ describeDatabase('booking concurrency', () => {
 					startAt: new Date('2099-07-01T05:30:00.000Z'),
 					endAt: new Date('2099-07-01T06:30:00.000Z')
 				},
-				userIds[0]
+				actors[0]
 			)
 		).resolves.toEqual({
 			ok: false,
@@ -255,7 +264,7 @@ describeDatabase('booking concurrency', () => {
 				startAt: new Date('2099-07-04T06:00:00.000Z'),
 				endAt: new Date('2099-07-04T07:00:00.000Z')
 			},
-			userIds[0]
+			actors[0]
 		)
 
 		expect(first.ok).toBe(true)
@@ -268,7 +277,7 @@ describeDatabase('booking concurrency', () => {
 					startAt: new Date('2099-07-04T06:30:00.000Z'),
 					endAt: new Date('2099-07-04T07:30:00.000Z')
 				},
-				userIds[1]
+				actors[1]
 			)
 		).resolves.toEqual({
 			ok: false,
@@ -289,8 +298,8 @@ describeDatabase('booking concurrency', () => {
 		}
 
 		const results = await Promise.all([
-			createBooking(input, userIds[0]),
-			createBooking(input, userIds[1])
+			createBooking(input, actors[0]),
+			createBooking(input, actors[1])
 		])
 
 		expect(results.filter(result => result.ok)).toHaveLength(1)

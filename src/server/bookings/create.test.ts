@@ -19,6 +19,10 @@ import { createBooking } from './create'
 
 const roomId = 'clh4k3j2l0000qwer1234asdf'
 const userId = 'clh4k3j2l0001qwer1234asdf'
+const actor = {
+	id: userId,
+	emailVerifiedAt: new Date('2026-01-01T00:00:00.000Z')
+}
 
 const input = {
 	roomId,
@@ -67,7 +71,7 @@ describe('createBooking', () => {
 				startAt: new Date('2099-07-01T07:00:00.000Z'),
 				endAt: new Date('2099-07-01T06:30:00.000Z')
 			},
-			userId
+			actor
 		)
 
 		expect(result).toEqual({
@@ -77,10 +81,23 @@ describe('createBooking', () => {
 		expect(transactionMock).not.toHaveBeenCalled()
 	})
 
+	it('rejects an unverified user before opening a transaction', async () => {
+		const result = await createBooking(input, {
+			...actor,
+			emailVerifiedAt: null
+		})
+
+		expect(result).toEqual({
+			ok: false,
+			reason: 'email-not-verified'
+		})
+		expect(transactionMock).not.toHaveBeenCalled()
+	})
+
 	it('returns room-not-found without creating a booking', async () => {
 		roomFindUniqueMock.mockResolvedValue(null)
 
-		const result = await createBooking(input, userId)
+		const result = await createBooking(input, actor)
 
 		expect(result).toEqual({
 			ok: false,
@@ -90,7 +107,7 @@ describe('createBooking', () => {
 	})
 
 	it('creates the booking and every occupied slot atomically', async () => {
-		const result = await createBooking(input, userId)
+		const result = await createBooking(input, actor)
 
 		expect(result).toEqual({
 			ok: true,
@@ -113,7 +130,7 @@ describe('createBooking', () => {
 				endAt: input.endAt,
 				user: {
 					connect: {
-						id: userId
+						id: actor.id
 					}
 				},
 				room: {
@@ -167,7 +184,7 @@ describe('createBooking', () => {
 			})
 		)
 
-		await expect(createBooking(input, userId)).resolves.toEqual({
+		await expect(createBooking(input, actor)).resolves.toEqual({
 			ok: false,
 			reason: 'slot-taken'
 		})
@@ -176,7 +193,7 @@ describe('createBooking', () => {
 	it('does not hide unexpected database errors', async () => {
 		transactionMock.mockRejectedValue(new Error('Database unavailable'))
 
-		await expect(createBooking(input, userId)).rejects.toThrow(
+		await expect(createBooking(input, actor)).rejects.toThrow(
 			'Database unavailable'
 		)
 	})

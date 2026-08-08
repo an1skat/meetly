@@ -1,8 +1,11 @@
-import { verifyEmailToken } from '@/server/auth/email-verification'
+import {
+	createAuthUrl,
+	verifyEmailToken
+} from '@/server/auth/email-verification'
 
 export async function GET(request: Request) {
 	const token = new URL(request.url).searchParams.get('token')
-	const resultUrl = new URL('/verify-email/result', request.url)
+	const resultUrl = createAuthUrl('/verify-email/result', request.url)
 
 	if (!token) {
 		resultUrl.searchParams.set('status', 'invalid')

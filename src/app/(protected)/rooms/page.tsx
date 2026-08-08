@@ -1,9 +1,11 @@
+import { Alert } from '@/components/ui/alert'
 import { RoomSchedule } from '@/modules/rooms/ui/room-schedule'
 import { requireUser } from '@/server/auth/session'
 import { getRooms } from '@/server/rooms/read'
 
 type RoomsPageProps = {
 	searchParams: Promise<{
+		emailVerified?: string | string[]
 		roomId?: string | string[]
 		week?: string | string[]
 	}>
@@ -25,6 +27,15 @@ export default async function RoomsPage({ searchParams }: RoomsPageProps) {
 
 	return (
 		<section className="space-y-6">
+			{query.emailVerified === '1' && (
+				<Alert
+					title="Email підтверджено"
+					variant="success"
+				>
+					Тепер ви можете створювати бронювання.
+				</Alert>
+			)}
+
 			<header>
 				<h1 className="text-2xl font-semibold">Розклад кімнат</h1>
 				<p className="mt-2 text-sm text-zinc-600">

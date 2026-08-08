@@ -44,10 +44,8 @@ export function RegisterForm() {
 	>({
 		mutationFn: values =>
 			postAuth<RegisterResponse>('/api/auth/register', values),
-		onSuccess: (_response, values) => {
-			router.replace(
-				`/verify-email/pending?email=${encodeURIComponent(values.email)}`
-			)
+		onSuccess: () => {
+			router.replace('/rooms')
 		},
 		onError: error => {
 			let hasFieldError = false

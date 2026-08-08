@@ -15,6 +15,13 @@ type FailureResponse = {
 }
 
 const failureResponses: Record<CreateBookingFailureReason, FailureResponse> = {
+	'email-not-verified': {
+		status: 403,
+		body: {
+			message: 'Підтвердьте email перед створенням бронювання',
+			fieldErrors: {}
+		}
+	},
 	order: {
 		status: 400,
 		body: {
@@ -107,7 +114,7 @@ export async function POST(request: Request) {
 			)
 		}
 
-		const result = await createBooking(parsed.data, user.id)
+		const result = await createBooking(parsed.data, user)
 
 		if (!result.ok) {
 			const response = failureResponses[result.reason]

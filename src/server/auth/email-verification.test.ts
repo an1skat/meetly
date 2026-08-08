@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const {
 	transactionMock,
@@ -28,7 +28,9 @@ vi.mock('@/server/db/prisma', () => ({
 
 import { Prisma } from '@/generated/prisma/client'
 import {
+	createAuthUrl,
 	createEmailVerificationTokenData,
+	logDevEmailVerificationLink,
 	regenerateEmailVerificationToken,
 	verifyEmailToken
 } from './email-verification'
@@ -61,7 +63,54 @@ beforeEach(() => {
 	userUpdateMock.mockResolvedValue(undefined)
 })
 
+afterEach(() => {
+	vi.unstubAllEnvs()
+	vi.restoreAllMocks()
+})
+
 describe('email verification', () => {
+	it('uses localhost for development links created from the bind address', () => {
+		vi.stubEnv('NODE_ENV', 'development')
+
+		expect(
+			createAuthUrl(
+				'/verify-email/result',
+				'http://0.0.0.0:3000/api/auth/verify-email'
+			).toString()
+		).toBe('http://localhost:3000/verify-email/result')
+	})
+
+	it('logs a highlighted localhost link in development', () => {
+		vi.stubEnv('NODE_ENV', 'development')
+		const infoMock = vi.spyOn(console, 'info').mockImplementation(() => {})
+
+		logDevEmailVerificationLink('http://0.0.0.0:3000/api/auth/register', {
+			email: user.email,
+			token: 'visible-token'
+		})
+
+		expect(infoMock).toHaveBeenCalledOnce()
+		const message = String(infoMock.mock.calls[0][0])
+
+		expect(message).toContain('\x1b[1;36m━━━ EMAIL VERIFICATION ━━━')
+		expect(message).toContain(
+			'http://localhost:3000/api/auth/verify-email?token=visible-token'
+		)
+		expect(message).not.toContain('0.0.0.0')
+	})
+
+	it('does not log a verification link in production', () => {
+		vi.stubEnv('NODE_ENV', 'production')
+		const infoMock = vi.spyOn(console, 'info').mockImplementation(() => {})
+
+		logDevEmailVerificationLink('https://meetly.example/api/auth/register', {
+			email: user.email,
+			token: 'secret-token'
+		})
+
+		expect(infoMock).not.toHaveBeenCalled()
+	})
+
 	it('creates a hashed token with a one-hour lifetime', () => {
 		const verification = createEmailVerificationTokenData(now)
 

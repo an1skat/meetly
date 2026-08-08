@@ -25,13 +25,31 @@ export function logDevEmailVerificationLink(
 		return
 	}
 
-	const verificationUrl = new URL('/api/auth/verify-email', requestUrl)
+	const verificationUrl = createAuthUrl(
+		'/api/auth/verify-email',
+		requestUrl
+	)
 
 	verificationUrl.searchParams.set('token', verification.token)
 
 	console.info(
-		`[dev] Email verification for ${verification.email}: ${verificationUrl.toString()}`
+		`\n\x1b[1;36m━━━ EMAIL VERIFICATION ━━━\x1b[0m\n` +
+			`\x1b[36m${verification.email}\x1b[0m\n` +
+			`\x1b[1;33m${verificationUrl.toString()}\x1b[0m\n`
 	)
+}
+
+export function createAuthUrl(pathname: string, requestUrl: string) {
+	const url = new URL(pathname, requestUrl)
+
+	if (
+		process.env.NODE_ENV !== 'production' &&
+		url.hostname === '0.0.0.0'
+	) {
+		url.hostname = 'localhost'
+	}
+
+	return url
 }
 
 export async function regenerateEmailVerificationToken(

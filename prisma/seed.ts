@@ -11,6 +11,8 @@ const rooms = [
 	{ name: 'Обрій', floor: 4, capacity: 12 }
 ]
 
+const demoEmailVerifiedAt = new Date('2026-01-01T00:00:00.000Z')
+
 type DemoBooking = {
 	id: string
 	title: string
@@ -94,24 +96,28 @@ async function main() {
 			where: { email: 'andriy@example.com' },
 			update: {
 				name: 'Андрій',
-				passwordHash
+				passwordHash,
+				emailVerifiedAt: demoEmailVerifiedAt
 			},
 			create: {
 				name: 'Андрій',
 				email: 'andriy@example.com',
-				passwordHash
+				passwordHash,
+				emailVerifiedAt: demoEmailVerifiedAt
 			}
 		}),
 		prisma.user.upsert({
 			where: { email: 'pavlo@example.com' },
 			update: {
 				name: 'Павло',
-				passwordHash
+				passwordHash,
+				emailVerifiedAt: demoEmailVerifiedAt
 			},
 			create: {
 				name: 'Павло',
 				email: 'pavlo@example.com',
-				passwordHash
+				passwordHash,
+				emailVerifiedAt: demoEmailVerifiedAt
 			}
 		})
 	])

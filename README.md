@@ -16,6 +16,25 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+## Email verification in development
+
+Registration creates a session immediately, so a new user can browse the room
+schedule without logging in again. Creating bookings remains disabled until the
+email address is verified.
+
+Verification tokens expire after one hour and are stored in PostgreSQL only as
+SHA-256 hashes. In development, registration and resend requests print a
+highlighted verification URL to the server log. SMTP delivery is intentionally
+not implemented at this stage.
+
+When the app runs in Docker, follow the link in the `app` service log:
+
+```bash
+docker compose logs -f app
+```
+
+Seed users `andriy@example.com` and `pavlo@example.com` are already verified.
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
