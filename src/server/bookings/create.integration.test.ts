@@ -9,6 +9,13 @@ import {
 } from 'vitest'
 
 const testDatabaseUrl = process.env.TEST_DATABASE_URL
+
+if (!testDatabaseUrl) {
+	console.warn(
+		'\x1b[33m⚠ TEST_DATABASE_URL is not set — booking integration tests will be skipped\x1b[0m'
+	)
+}
+
 const describeDatabase = testDatabaseUrl ? describe : describe.skip
 
 let prisma: (typeof import('@/server/db/prisma'))['prisma'] | undefined
