@@ -1,9 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { getCurrentUserMock, cancelBookingMock } = vi.hoisted(() => ({
-	getCurrentUserMock: vi.fn(),
-	cancelBookingMock: vi.fn()
-}))
+const { getCurrentUserMock, cancelBookingMock, updateBookingMock } = vi.hoisted(
+	() => ({
+		getCurrentUserMock: vi.fn(),
+		cancelBookingMock: vi.fn(),
+		updateBookingMock: vi.fn()
+	})
+)
 
 vi.mock('@/server/auth/session', () => ({
 	getCurrentUser: getCurrentUserMock
@@ -13,7 +16,11 @@ vi.mock('@/server/bookings/cancel', () => ({
 	cancelBooking: cancelBookingMock
 }))
 
-import { DELETE } from './route'
+vi.mock('@/server/bookings/update', () => ({
+	updateBooking: updateBookingMock
+}))
+
+import { DELETE, PATCH } from './route'
 
 const bookingId = 'clh4k3j2l0002qwer1234asdf'
 const user = {
@@ -26,6 +33,20 @@ const request = new Request(`http://localhost/api/bookings/${bookingId}`, {
 	method: 'DELETE'
 })
 const context = { params: Promise.resolve({ id: bookingId }) }
+const updateBody = {
+	roomId: 'clh4k3j2l0000qwer1234asdf',
+	title: 'Оновлене планування',
+	startAt: '2099-07-01T06:00:00.000Z',
+	endAt: '2099-07-01T07:00:00.000Z'
+}
+
+function createPatchRequest(body: unknown = updateBody) {
+	return new Request(`http://localhost/api/bookings/${bookingId}`, {
+		method: 'PATCH',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify(body)
+	})
+}
 
 beforeEach(() => {
 	vi.resetAllMocks()
@@ -128,6 +149,80 @@ describe('DELETE /api/bookings/:id', () => {
 		expect(response.status).toBe(500)
 		expect(await response.json()).toEqual({
 			message: 'Не вдалося скасувати бронювання'
+		})
+	})
+})
+
+describe('PATCH /api/bookings/:id', () => {
+	it('returns 401 for an anonymous request', async () => {
+		getCurrentUserMock.mockResolvedValue(null)
+
+		const response = await PATCH(createPatchRequest(), context)
+
+		expect(response.status).toBe(401)
+		expect(updateBookingMock).not.toHaveBeenCalled()
+	})
+
+	it('validates the request body', async () => {
+		const response = await PATCH(
+			createPatchRequest({ ...updateBody, title: '' }),
+			context
+		)
+
+		expect(response.status).toBe(400)
+		expect(await response.json()).toMatchObject({
+			message: 'Перевірте введені дані',
+			fieldErrors: {
+				title: ['Вкажіть назву бронювання']
+			}
+		})
+		expect(updateBookingMock).not.toHaveBeenCalled()
+	})
+
+	it('forbids editing another user booking through the API', async () => {
+		updateBookingMock.mockResolvedValue({ ok: false, reason: 'forbidden' })
+
+		const response = await PATCH(createPatchRequest(), context)
+
+		expect(response.status).toBe(403)
+		expect(await response.json()).toEqual({
+			message: 'Ви можете редагувати лише власне бронювання',
+			fieldErrors: {}
+		})
+		expect(updateBookingMock).toHaveBeenCalledWith(
+			bookingId,
+			{
+				...updateBody,
+				startAt: new Date(updateBody.startAt),
+				endAt: new Date(updateBody.endAt)
+			},
+			user.id
+		)
+	})
+
+	it('updates an owned booking', async () => {
+		const updatedBooking = { id: bookingId, title: updateBody.title }
+		updateBookingMock.mockResolvedValue({
+			ok: true,
+			booking: updatedBooking
+		})
+
+		const response = await PATCH(createPatchRequest(), context)
+
+		expect(response.status).toBe(200)
+		expect(await response.json()).toEqual({ booking: updatedBooking })
+	})
+
+	it('returns 500 without exposing an internal error', async () => {
+		updateBookingMock.mockRejectedValue(
+			new Error('Database credentials leaked here')
+		)
+
+		const response = await PATCH(createPatchRequest(), context)
+
+		expect(response.status).toBe(500)
+		expect(await response.json()).toEqual({
+			message: 'Не вдалося оновити бронювання'
 		})
 	})
 })

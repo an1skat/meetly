@@ -32,6 +32,8 @@ export const createBookingRequestSchema = createBookingSchema.extend({
 	recurrence: recurrenceSchema.optional()
 })
 
+export const updateBookingSchema = createBookingSchema
+
 export const bookingRangeSchema = z
 	.object({
 		from: isoUtcDateTime,

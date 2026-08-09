@@ -7,87 +7,21 @@ import {
 } from '@/server/bookings/create'
 import { createRecurringBooking } from '@/server/bookings/create-recurring'
 import z from 'zod'
+import {
+	bookingWriteFailureResponses,
+	type BookingFailureResponse
+} from './failure-responses'
 
-type FailureResponse = {
-	status: number
-	body: {
-		message: string
-		fieldErrors: Record<string, string[]>
-	}
-}
-
-const failureResponses: Record<CreateBookingFailureReason, FailureResponse> = {
+const failureResponses: Record<
+	CreateBookingFailureReason,
+	BookingFailureResponse
+> = {
+	...bookingWriteFailureResponses,
 	'email-not-verified': {
 		status: 403,
 		body: {
 			message: 'Підтвердьте email перед створенням бронювання',
 			fieldErrors: {}
-		}
-	},
-	order: {
-		status: 400,
-		body: {
-			message: 'Час початку має бути раніше за час завершення',
-			fieldErrors: {
-				endAt: ['Час завершення має бути пізніше за час початку']
-			}
-		}
-	},
-	slot: {
-		status: 400,
-		body: {
-			message: 'Час має відповідати 30-хвилинній сітці',
-			fieldErrors: {
-				startAt: ['Вкажіть час із кроком 30 хвилин'],
-				endAt: ['Вкажіть час із кроком 30 хвилин']
-			}
-		}
-	},
-	duration: {
-		status: 400,
-		body: {
-			message: 'Тривалість бронювання має становити від 30 хвилин до 4 годин',
-			fieldErrors: {
-				endAt: ['Тривалість бронювання має становити від 30 хвилин до 4 годин']
-			}
-		}
-	},
-	'office-hours': {
-		status: 400,
-		body: {
-			message: 'Бронювання має бути в межах 09:00–19:00 за київським часом',
-			fieldErrors: {
-				startAt: ['Робочі години: 09:00–19:00 за київським часом'],
-				endAt: ['Робочі години: 09:00–19:00 за київським часом']
-			}
-		}
-	},
-	past: {
-		status: 400,
-		body: {
-			message: 'Бронювання можна створити лише на майбутній час',
-			fieldErrors: {
-				startAt: ['Вкажіть час у майбутньому']
-			}
-		}
-	},
-	'room-not-found': {
-		status: 404,
-		body: {
-			message: 'Кімнату не знайдено',
-			fieldErrors: {
-				roomId: ['Кімнату не знайдено']
-			}
-		}
-	},
-	'slot-taken': {
-		status: 409,
-		body: {
-			message: 'Цей слот уже зайнятий',
-			fieldErrors: {
-				startAt: ['Цей слот уже зайнятий'],
-				endAt: ['Цей слот уже зайнятий']
-			}
 		}
 	}
 }
