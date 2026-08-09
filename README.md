@@ -35,6 +35,26 @@ docker compose logs -f app
 
 Seed users `andriy@example.com` and `pavlo@example.com` are already verified.
 
+## Notifications
+
+Meetly creates an unread notification when a current booking ends within
+`NOTIFY_BEFORE_MINUTES` and another booking starts immediately afterward in the
+same room. A database unique constraint makes repeated generator runs safe, and
+deleting either booking removes the notification through `ON DELETE CASCADE`.
+
+Set `NOTIFY_BEFORE_MINUTES` and a random `CRON_SECRET` of at least 32 characters
+in `.env`. An external scheduler must call the internal endpoint once per
+minute:
+
+```bash
+curl --request POST \
+  --header "Authorization: Bearer $CRON_SECRET" \
+  http://localhost:3000/api/internal/notifications/run
+```
+
+Use HTTPS when the endpoint is exposed outside local development, and keep the
+secret in the scheduler's secret storage.
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.

@@ -13,6 +13,10 @@ datasource db {
   provider = "postgresql"
 }
 
+enum NotificationType {
+  NEXT_BOOKING
+}
+
 model User {
   id                     String                   @id @default(cuid())
   name                   String                   @db.VarChar(100)
@@ -25,6 +29,7 @@ model User {
   bookings               Booking[]
   sessions               Session[]
   recurringBookingSeries RecurringBookingSeries[]
+  notifications          Notification[]
 }
 
 model Session {
@@ -71,6 +76,9 @@ model Booking {
 
   recurringSeries RecurringBookingSeries? @relation(fields: [recurringSeriesId], references: [id], onDelete: SetNull)
 
+  notificationsAsCurrent Notification[] @relation("NotificationCurrentBooking")
+  notificationsAsNext    Notification[] @relation("NotificationNextBooking")
+
   @@index([roomId, startAt, endAt])
   @@index([userId, startAt])
   @@index([recurringSeriesId])
@@ -111,4 +119,24 @@ model EmailVerificationToken {
   expiresAt DateTime @db.Timestamptz(3)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  type      NotificationType
+  readAt    DateTime?        @db.Timestamptz(3)
+  createdAt DateTime         @default(now()) @db.Timestamptz(3)
+
+  userId           String
+  currentBookingId String
+  nextBookingId    String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  currentBooking Booking @relation("NotificationCurrentBooking", fields: [currentBookingId], references: [id], onDelete: Cascade)
+
+  nextBooking Booking @relation("NotificationNextBooking", fields: [nextBookingId], references: [id], onDelete: Cascade)
+
+  @@unique([type, currentBookingId, nextBookingId])
+  @@index([userId, readAt, createdAt])
 }

@@ -6,33 +6,34 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-meetly}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-meetly}
     ports:
-      - "5434:5432"
+      - '5434:5432'
     volumes:
       - postgres_data:/var/lib/postgresql
     healthcheck:
-      test: [
-        "CMD-SHELL",
-        "pg_isready -U ${POSTGRES_USER:-meetly} -d ${POSTGRES_DB:-meetly}",
-      ]
+      test:
+        [
+          'CMD-SHELL',
+          'pg_isready -U ${POSTGRES_USER:-meetly} -d ${POSTGRES_DB:-meetly}'
+        ]
       interval: 2s
       timeout: 5s
       retries: 15
-  
+
   app:
     build:
       context: .
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-meetly}:${POSTGRES_PASSWORD:-meetly}@db:5432/${POSTGRES_DB:-meetly}
+      NOTIFY_BEFORE_MINUTES: ${NOTIFY_BEFORE_MINUTES:-10}
+      CRON_SECRET: ${CRON_SECRET:?Set CRON_SECRET in .env}
     depends_on:
       db:
         condition: service_healthy
     ports:
-      - "3000:3000"
+      - '3000:3000'
     command: >
-      sh -c "npx prisma generate &&
-      npx prisma migrate deploy &&
-      npx prisma db seed &&
-      npm run dev -- --hostname 0.0.0.0"
+      sh -c "npx prisma generate && npx prisma migrate deploy && npx prisma db
+      seed && npm run dev -- --hostname 0.0.0.0"
     develop:
       watch:
         - action: sync
