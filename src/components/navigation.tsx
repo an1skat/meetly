@@ -1,4 +1,5 @@
 import { LogoutButton } from '@/modules/auth/ui/logout-button'
+import { NotificationsBell } from '@/modules/notifications/ui/notifications-bell'
 import Link from 'next/link'
 
 type NavigationProps = {
@@ -40,6 +41,8 @@ export function Navigation({ user }: NavigationProps) {
 						Мої бронювання
 					</Link>
 				</div>
+
+				<NotificationsBell />
 
 				<div className="hidden text-right md:block">
 					<p className="text-sm font-medium">{user.name}</p>
