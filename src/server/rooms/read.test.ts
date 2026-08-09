@@ -33,6 +33,23 @@ describe('room reads', () => {
 
 		await expect(getRooms()).resolves.toEqual([room])
 		expect(findMany).toHaveBeenCalledWith({
+			where: undefined,
+			select: {
+				id: true,
+				name: true,
+				floor: true,
+				capacity: true
+			},
+			orderBy: [{ floor: 'asc' }, { name: 'asc' }]
+		})
+	})
+
+	it('filters rooms by minimum capacity', async () => {
+		findMany.mockResolvedValue([room])
+
+		await expect(getRooms(6)).resolves.toEqual([room])
+		expect(findMany).toHaveBeenCalledWith({
+			where: { capacity: { gte: 6 } },
 			select: {
 				id: true,
 				name: true,

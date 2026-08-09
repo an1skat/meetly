@@ -2,9 +2,11 @@
 
 import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
 import { CancelBookingDialog } from '@/modules/bookings/ui/cancel-booking-dialog'
 import { CreateBookingDialog } from '@/modules/bookings/ui/create-booking-dialog'
+import { roomsQuerySchema } from '@/modules/rooms/schemas'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import {
@@ -77,6 +79,7 @@ export function RoomSchedule({
 			: (rooms[0]?.id ?? '')
 
 	const [selectedRoomId, setSelectedRoomId] = useState(firstRoomId)
+	const [participantCount, setParticipantCount] = useState('')
 	const [selectedStartAt, setSelectedStartAt] = useState<Date | null>(null)
 	const [bookingToCancel, setBookingToCancel] = useState<Pick<
 		ScheduleBooking,
@@ -115,8 +118,24 @@ export function RoomSchedule({
 		return () => window.clearInterval(intervalId)
 	}, [])
 
+	const capacityResult = roomsQuerySchema.shape.minCapacity.safeParse(
+		participantCount === '' ? undefined : participantCount
+	)
+	const filteredRooms = capacityResult.success
+		? rooms.filter(
+				room => capacityResult.data === undefined || room.capacity >= capacityResult.data
+			)
+		: []
+
+	const effectiveRoomId = filteredRooms.some(
+		room => room.id === selectedRoomId
+	)
+		? selectedRoomId
+		: (filteredRooms[0]?.id ?? '')
+
 	const selectedRoom =
-		rooms.find(room => room.id === selectedRoomId) ?? rooms[0]
+		filteredRooms.find(room => room.id === effectiveRoomId) ?? filteredRooms[0]
+
 	const timeZone = browserTimeZone ?? OFFICE_TIME_ZONE
 
 	if (
@@ -147,12 +166,48 @@ export function RoomSchedule({
 		enabled: Boolean(selectedRoom)
 	})
 	const bookings = bookingsQuery.data ?? []
+	const participantCountField = (
+		<Input
+			id="participant-count"
+			label="Кількість учасників"
+			type="number"
+			min={1}
+			step={1}
+			value={participantCount}
+			error={
+				capacityResult.success
+					? undefined
+					: 'Введіть ціле число, більше за нуль.'
+			}
+			placeholder="Наприклад, 6"
+			className="h-11"
+			onChange={event => setParticipantCount(event.target.value)}
+		/>
+	)
+
+	if (rooms.length === 0) {
+		return (
+			<Alert title="Кімнат поки немає">
+				Після додавання кімнат вони з&apos;являться у цьому списку.
+			</Alert>
+		)
+	}
 
 	if (!selectedRoom) {
 		return (
-			<Alert title="Кімнат поки немає">
-				Після додавання кімнат вони з’являться у цьому списку.
-			</Alert>
+			<div className="space-y-5">
+				<div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-5">
+					<div className="grid gap-4 md:grid-cols-[minmax(16rem,1fr)_auto] md:items-end">
+						{participantCountField}
+					</div>
+				</div>
+
+				{capacityResult.success && (
+					<Alert title="Немає кімнат потрібної місткості">
+						Зменште кількість учасників.
+					</Alert>
+				)}
+			</div>
 		)
 	}
 
@@ -160,6 +215,8 @@ export function RoomSchedule({
 		<div className="space-y-5">
 			<div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-5">
 				<div className="grid gap-4 md:grid-cols-[minmax(16rem,1fr)_auto] md:items-end">
+					{participantCountField}
+
 					<div className="grid gap-1.5">
 						<label
 							className="text-sm font-medium"
@@ -170,7 +227,7 @@ export function RoomSchedule({
 						<select
 							id="room"
 							className="h-11 rounded-md border border-zinc-300 bg-white px-3 text-sm outline-none focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200"
-							value={selectedRoom.id}
+							value={effectiveRoomId}
 							onChange={event => {
 								setSelectedRoomId(event.target.value)
 								setSelectedStartAt(null)
@@ -178,7 +235,7 @@ export function RoomSchedule({
 								setSuccessMessage(null)
 							}}
 						>
-							{rooms.map(room => (
+							{filteredRooms.map(room => (
 								<option
 									key={room.id}
 									value={room.id}

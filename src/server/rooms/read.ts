@@ -28,8 +28,9 @@ const roomScheduleSelect = {
 	}
 } as const
 
-export async function getRooms() {
+export async function getRooms(minCapacity?: number) {
 	return prisma.room.findMany({
+		where: minCapacity !== undefined ? { capacity: { gte: minCapacity } } : undefined,
 		select: roomSelect,
 		orderBy: [{ floor: 'asc' }, { name: 'asc' }]
 	})

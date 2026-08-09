@@ -28,22 +28,52 @@ describe('GET /api/rooms', () => {
 	it('returns all rooms', async () => {
 		getRoomsMock.mockResolvedValue([room])
 
-		const response = await getRoomsHandler()
+		const response = await getRoomsHandler(
+			new Request('http://localhost/api/rooms')
+		)
 
 		expect(response.status).toBe(200)
 		expect(await response.json()).toEqual({ rooms: [room] })
+		expect(getRoomsMock).toHaveBeenCalledWith(undefined)
 	})
 
 	it('returns 500 when the database query fails', async () => {
 		getRoomsMock.mockRejectedValue(new Error('Database unavailable'))
 
-		const response = await getRoomsHandler()
+		const response = await getRoomsHandler(
+			new Request('http://localhost/api/rooms')
+		)
 
 		expect(response.status).toBe(500)
 		expect(await response.json()).toEqual({
 			message: 'Не вдалося отримати кімнати'
 		})
 	})
+
+	it('filters rooms by minimum capacity', async () => {
+		getRoomsMock.mockResolvedValue([room])
+
+		const response = await getRoomsHandler(
+			new Request('http://localhost/api/rooms?minCapacity=6')
+		)
+
+		expect(response.status).toBe(200)
+		expect(getRoomsMock).toHaveBeenCalledWith(6)
+	})
+
+	it.each(['abc', '0', '-1', '6.5'])(
+		'returns 400 for invalid minCapacity %s',
+		async minCapacity => {
+			const response = await getRoomsHandler(
+				new Request(
+					`http://localhost/api/rooms?minCapacity=${minCapacity}`
+				)
+			)
+
+			expect(response.status).toBe(400)
+			expect(getRoomsMock).not.toHaveBeenCalled()
+		}
+	)
 })
 
 describe('GET /api/rooms/:id', () => {
