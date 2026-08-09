@@ -1,7 +1,7 @@
 'use client'
 
 import { intervalsOverlap, SLOT_MINUTES } from '@/modules/bookings/time'
-import { useState } from 'react'
+import { useState, type KeyboardEvent } from 'react'
 import {
 	DISPLAY_TIME_LABELS,
 	formatTimeInTimeZone,
@@ -35,6 +35,85 @@ const DAY_MINUTES = 24 * 60
 type LaidOutBookingSegment = BookingSegment & {
 	columnIndex: number
 	columnCount: number
+}
+
+type SlotNavigationKey =
+	| 'ArrowDown'
+	| 'ArrowLeft'
+	| 'ArrowRight'
+	| 'ArrowUp'
+	| 'End'
+	| 'Home'
+
+const slotNavigationKeys = new Set<string>([
+	'ArrowDown',
+	'ArrowLeft',
+	'ArrowRight',
+	'ArrowUp',
+	'End',
+	'Home'
+])
+
+function isSlotNavigationKey(key: string): key is SlotNavigationKey {
+	return slotNavigationKeys.has(key)
+}
+
+function getSlotKey(slot: Pick<BookingSegment, 'dayIndex' | 'startAt'>) {
+	return `${slot.dayIndex}-${slot.startAt}`
+}
+
+export function getNextSlotIndex(
+	slots: Pick<BookingSegment, 'dayIndex' | 'top'>[],
+	currentIndex: number,
+	key: SlotNavigationKey
+) {
+	const currentSlot = slots[currentIndex]
+
+	if (!currentSlot) {
+		return currentIndex
+	}
+
+	const sameDayIndexes = slots
+		.map((slot, index) => ({ index, slot }))
+		.filter(({ slot }) => slot.dayIndex === currentSlot.dayIndex)
+		.toSorted((a, b) => a.slot.top - b.slot.top)
+		.map(({ index }) => index)
+
+	if (key === 'Home') {
+		return sameDayIndexes[0] ?? currentIndex
+	}
+
+	if (key === 'End') {
+		return sameDayIndexes.at(-1) ?? currentIndex
+	}
+
+	if (key === 'ArrowUp' || key === 'ArrowDown') {
+		const position = sameDayIndexes.indexOf(currentIndex)
+		const offset = key === 'ArrowUp' ? -1 : 1
+
+		return sameDayIndexes[position + offset] ?? currentIndex
+	}
+
+	const targetDayIndex =
+		currentSlot.dayIndex + (key === 'ArrowLeft' ? -1 : 1)
+	const targetDayIndexes = slots
+		.map((slot, index) => ({ index, slot }))
+		.filter(({ slot }) => slot.dayIndex === targetDayIndex)
+
+	return (
+		targetDayIndexes.toSorted(
+			(a, b) =>
+				Math.abs(a.slot.top - currentSlot.top) -
+				Math.abs(b.slot.top - currentSlot.top)
+		)[0]?.index ?? currentIndex
+	)
+}
+
+export function isCompactBookingSegment(
+	segment: Pick<BookingSegment, 'height'>,
+	slotCount: number
+) {
+	return segment.height <= 100 / slotCount + 0.001
 }
 
 function fitSegmentsToRange<T extends { top: number; height: number }>(
@@ -146,6 +225,7 @@ export function WeekGrid({
 	const [mobileDayKey, setMobileDayKey] = useState(
 		() => days[getInitialMobileDayIndex(days)]?.key ?? ''
 	)
+	const [focusedSlotKey, setFocusedSlotKey] = useState<string | null>(null)
 	const marker = getCurrentTimeMarker(now, days, timeZone)
 	const rawBookingSegments = getBookingSegments(bookings, days, timeZone)
 	const { bookableSlots, displayRange } = getScheduleSlots(days, timeZone, now)
@@ -215,6 +295,14 @@ export function WeekGrid({
 		const visibleFreeSlots = freeSlotSegments.filter(segment =>
 			dayPositions.has(segment.dayIndex)
 		)
+		const fallbackFocusableSlotKey = visibleFreeSlots[0]
+			? getSlotKey(visibleFreeSlots[0])
+			: null
+		const focusableSlotKey = visibleFreeSlots.some(
+			segment => getSlotKey(segment) === focusedSlotKey
+		)
+			? focusedSlotKey
+			: fallbackFocusableSlotKey
 		const visibleBookings = bookingSegments.filter(segment =>
 			dayPositions.has(segment.dayIndex)
 		)
@@ -271,9 +359,10 @@ export function WeekGrid({
 							})
 						)}
 
-						{visibleFreeSlots.map(segment => {
+						{visibleFreeSlots.map((segment, slotIndex) => {
 							const day = days[segment.dayIndex]
 							const dayPosition = dayPositions.get(segment.dayIndex) ?? 0
+							const slotKey = getSlotKey(segment)
 							const time = formatTimeInTimeZone(
 								new Date(segment.startAt),
 								timeZone
@@ -285,6 +374,9 @@ export function WeekGrid({
 									key={`${segment.id}-${segment.dayIndex}`}
 									type="button"
 									aria-label={label}
+									aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight Home End"
+									data-slot-key={slotKey}
+									tabIndex={slotKey === focusableSlotKey ? 0 : -1}
 									className="group absolute z-1 flex touch-manipulation items-center justify-center rounded-lg bg-transparent text-lime outline-none transition-colors hover:bg-lime/15 active:bg-lime/20 focus-visible:z-20 focus-visible:ring-2 focus-visible:ring-lime focus-visible:ring-inset"
 									style={{
 										top: `${segment.top}%`,
@@ -293,6 +385,34 @@ export function WeekGrid({
 										height: `${segment.height}%`
 									}}
 									title={label}
+									onFocus={() => setFocusedSlotKey(slotKey)}
+									onKeyDown={(event: KeyboardEvent<HTMLButtonElement>) => {
+										if (!isSlotNavigationKey(event.key)) {
+											return
+										}
+
+										event.preventDefault()
+
+										const nextSlotIndex = getNextSlotIndex(
+											visibleFreeSlots,
+											slotIndex,
+											event.key
+										)
+										const nextSlot = visibleFreeSlots[nextSlotIndex]
+
+										if (!nextSlot || nextSlotIndex === slotIndex) {
+											return
+										}
+
+										const nextSlotKey = getSlotKey(nextSlot)
+
+										setFocusedSlotKey(nextSlotKey)
+										event.currentTarget.parentElement
+											?.querySelector<HTMLButtonElement>(
+												`[data-slot-key="${nextSlotKey}"]`
+											)
+											?.focus()
+									}}
 									onClick={() => onSelectSlot(new Date(segment.startAt))}
 								>
 									<span
@@ -313,6 +433,10 @@ export function WeekGrid({
 							const dayPosition = dayPositions.get(segment.dayIndex) ?? 0
 							const dayWidth = 100 / dayCount
 							const isPast = new Date(segment.endAt) <= now
+							const isCompact = isCompactBookingSegment(
+								segment,
+								timeSlots.length
+							)
 							const startLabel = formatTimeInTimeZone(
 								new Date(segment.startAt),
 								timeZone
@@ -321,16 +445,21 @@ export function WeekGrid({
 								new Date(segment.endAt),
 								timeZone
 							)
+							const ownerLabel = segment.isOwn
+								? 'ваше бронювання'
+								: segment.authorName
 
 							return (
 								<div
 									key={`${segment.id}-${segment.dayIndex}`}
-									className={`absolute z-10 overflow-hidden rounded-lg border px-2 py-1.5 text-xs shadow-sm transition-opacity ${
+									className={`absolute z-10 overflow-hidden rounded-lg border px-2 text-xs shadow-sm ${isCompact ? 'flex items-center py-1' : 'py-1.5'} ${
 										segment.isOwn
 											? 'border-lime/50 bg-lime text-lime-ink'
 											: 'border-grape/15 bg-grape-soft text-grape'
-									} ${isPast ? 'opacity-45 saturate-50' : ''} ${
-										emphasizeOwnBookings && !segment.isOwn ? 'opacity-30' : ''
+									} ${isPast ? 'border-dashed saturate-50' : ''} ${
+										emphasizeOwnBookings && segment.isOwn
+											? 'ring-2 ring-inset ring-lime-ink/35'
+											: ''
 									}`}
 									style={{
 										top: `${segment.top}%`,
@@ -338,24 +467,34 @@ export function WeekGrid({
 										width: `${dayWidth / segment.columnCount}%`,
 										height: `${segment.height}%`
 									}}
-									title={`${segment.title}: ${startLabel}–${endLabel}`}
+									title={`${segment.title}: ${startLabel}–${endLabel} · ${ownerLabel}`}
 								>
 									<span
-										className={`block truncate font-semibold ${segment.isOwn ? 'pr-10 lg:pr-6' : ''}`}
+										className={`block min-w-0 truncate font-semibold ${segment.isOwn ? 'pr-10 lg:pr-9' : ''}`}
 									>
 										{segment.title}
 									</span>
-									<span className="mt-1 block truncate text-[10px] opacity-80">
-										{startLabel}–{endLabel}
-									</span>
-									<span className="mt-1 block truncate text-[10px] opacity-70">
-										{segment.isOwn ? 'Ваше бронювання' : segment.authorName}
-									</span>
+									{isCompact ? (
+										<span className="sr-only">
+											{startLabel}–{endLabel}, {ownerLabel}
+										</span>
+									) : (
+										<>
+											<span className="mt-1 block truncate text-xs opacity-80">
+												{startLabel}–{endLabel}
+											</span>
+											<span className="mt-1 block truncate text-xs opacity-80">
+												{segment.isOwn
+													? 'Ваше бронювання'
+													: segment.authorName}
+											</span>
+										</>
+									)}
 									{segment.isOwn && new Date(segment.startAt) > now && (
 										<button
 											type="button"
 											aria-label={`Скасувати бронювання «${segment.title}»`}
-											className="absolute right-0.5 top-0.5 flex h-11 w-11 touch-manipulation items-center justify-center rounded-lg bg-lime-ink/10 text-lg leading-none outline-none hover:bg-lime-ink/20 focus-visible:ring-2 focus-visible:ring-lime-ink disabled:cursor-not-allowed disabled:opacity-60 lg:right-1 lg:top-1 lg:h-5 lg:w-5 lg:text-sm"
+											className="absolute right-0.5 top-0.5 flex h-11 w-11 touch-manipulation items-center justify-center rounded-lg bg-lime-ink/10 text-lg leading-none outline-none hover:bg-lime-ink/20 focus-visible:ring-2 focus-visible:ring-lime-ink disabled:cursor-not-allowed disabled:opacity-60 lg:h-8 lg:w-8 lg:text-base"
 											title="Скасувати бронювання"
 											onClick={() =>
 												onCancelBooking({
@@ -374,9 +513,8 @@ export function WeekGrid({
 
 						{visibleMarker && (
 							<div
-								aria-label={`Поточний час: ${formatTimeInTimeZone(now, timeZone)}`}
+								aria-hidden="true"
 								className="pointer-events-none absolute z-20 h-px bg-coral"
-								role="status"
 								style={{
 									top: `${visibleMarker.percentage}%`,
 									left: `${((dayPositions.get(visibleMarker.dayIndex) ?? 0) / dayCount) * 100}%`,
@@ -411,7 +549,7 @@ export function WeekGrid({
 										: 'text-ink'
 							}`}
 						>
-							<span className="block text-[10px] font-semibold uppercase tracking-[0.12em]">
+							<span className="block text-xs font-semibold uppercase tracking-[0.12em]">
 								{day.weekdayLabel}
 							</span>
 							<span className="mt-1 block text-sm font-bold">

@@ -107,15 +107,14 @@ export function MyBookingsList() {
 	return (
 		<div className="space-y-5">
 			<div
-				role="tablist"
+				role="group"
 				aria-label="Тип бронювань"
 				className="inline-flex rounded-xl border border-line bg-surface p-1"
 			>
 				<button
 					type="button"
-					role="tab"
-					aria-selected={type === 'upcoming'}
-					className={`min-h-10 rounded-lg px-4 text-sm font-semibold transition-colors ${
+					aria-pressed={type === 'upcoming'}
+					className={`min-h-10 rounded-lg px-4 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime ${
 						type === 'upcoming'
 							? 'bg-lime text-lime-ink'
 							: 'text-muted hover:bg-raised hover:text-ink'
@@ -127,9 +126,8 @@ export function MyBookingsList() {
 
 				<button
 					type="button"
-					role="tab"
-					aria-selected={type === 'past'}
-					className={`min-h-10 rounded-lg px-4 text-sm font-semibold transition-colors ${
+					aria-pressed={type === 'past'}
+					className={`min-h-10 rounded-lg px-4 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime ${
 						type === 'past'
 							? 'bg-lime text-lime-ink'
 							: 'text-muted hover:bg-raised hover:text-ink'
@@ -186,7 +184,7 @@ export function MyBookingsList() {
 							>
 								<div className="grid gap-4 sm:grid-cols-[4.5rem_minmax(0,1fr)_auto] sm:items-center">
 									<div className="grid min-h-20 place-items-center rounded-2xl bg-lime-soft px-2 py-2 text-center">
-										<span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-lime">
+										<span className="text-xs font-semibold uppercase tracking-[0.12em] text-lime">
 											{weekdayFormatter.format(startAt).replace(/\.$/, '')}
 										</span>
 										<strong className="text-2xl leading-none">

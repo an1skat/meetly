@@ -1,50 +1,344 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Meetly
 
-## Getting Started
+Meetly — вебзастосунок для бронювання переговорних кімнат
 
-First, run the development server:
+Застосунок дозволяє переглядати тижневий розклад кімнат, бронювати вільний час,
+створювати повторювані зустрічі, скасовувати власні бронювання та переглядати їх
+історію.
+
+## Можливості
+
+### Основні
+
+- реєстрація, вхід і вихід користувача;
+- збереження сесії після перезавантаження сторінки;
+- тижневий розклад кімнат із 30-хвилинними слотами;
+- перемикання між попередніми та наступними тижнями;
+- відображення назви бронювання та його автора;
+- візуальне розділення власних і чужих бронювань;
+- виділення поточного дня та часу;
+- створення бронювань тривалістю від 30 хвилин до 4 годин;
+- перевірка робочих годин, майбутнього часу та конфліктів;
+- скасування лише власних майбутніх бронювань;
+- сторінка «Мої бронювання» з майбутніми та минулими записами;
+- пагінація історії бронювань;
+- перехід із бронювання до розкладу відповідної кімнати;
+- відображення часу в часовому поясі браузера;
+- адаптація інтерфейсу до різної ширини екрана.
+
+### Реалізовані бонуси
+
+- запуск застосунку та PostgreSQL через Docker Compose;
+- підтвердження email у dev-режимі;
+- щотижневі повторювані бронювання;
+- скасування одного повторення або всіх майбутніх повторень серії;
+- захист від одночасного бронювання одного слота;
+- внутрішні сповіщення перед завершенням поточного бронювання;
+- інтеграційні тести з PostgreSQL;
+- фільтрація кімнат за мінімальною місткістю;
+- мобільний варіант тижневого розкладу.
+
+## Технології
+
+- Next.js 16 з App Router;
+- React 19;
+- TypeScript;
+- PostgreSQL;
+- Prisma ORM 7;
+- Tailwind CSS;
+- Zod;
+- React Hook Form;
+- TanStack Query;
+- bcrypt;
+- Vitest;
+- Docker Compose.
+
+## Швидкий запуск через Docker
+
+### Вимоги
+
+Для запуску потрібні:
+
+- Git;
+- Docker;
+- Docker Compose.
+
+Клонуйте репозиторій і створіть локальний env-файл:
+
+```bash
+git clone https://github.com/an1skat/meetly.git
+cd meetly
+cp .env.example .env
+```
+
+У `.env` замініть значення `CRON_SECRET` на випадковий секрет довжиною
+щонайменше 32 символи.
+
+Згенерувати такий секрет можна командою:
+
+```bash
+openssl rand -hex 32
+```
+
+Запустіть застосунок:
+
+```bash
+docker compose up --build
+```
+
+Після запуску Meetly буде доступний за адресою:
+
+```text
+http://localhost:3000
+```
+
+Під час старту Docker автоматично:
+
+1. очікує готовності PostgreSQL;
+2. генерує Prisma Client;
+3. застосовує наявні міграції;
+4. запускає idempotent seed;
+5. запускає Next.js на `0.0.0.0:3000`.
+
+Зупинити контейнери:
+
+```bash
+docker compose down
+```
+
+Дані PostgreSQL зберігаються в Docker volume і не видаляються після звичайного
+`docker compose down`.
+
+## Локальний запуск
+
+### Вимоги
+
+- Node.js 24;
+- npm;
+- PostgreSQL або Docker.
+
+Створіть `.env`:
+
+```bash
+cp .env.example .env
+```
+
+Для локальної розробки PostgreSQL можна запустити окремо через Docker:
+
+```bash
+docker compose up -d db
+```
+
+За замовчуванням база буде доступна на порту `5434`, що відповідає значенню
+`DATABASE_URL` у `.env.example`.
+
+Встановіть залежності:
+
+```bash
+npm ci
+```
+
+Згенеруйте Prisma Client, застосуйте міграції та запустіть seed:
+
+```bash
+npx prisma generate
+npx prisma migrate deploy
+npx prisma db seed
+```
+
+Запустіть dev-сервер:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Застосунок буде доступний за адресою
+[http://localhost:3000](http://localhost:3000).
 
-## Email verification in development
+## Змінні середовища
 
-Registration creates a session immediately, so a new user can browse the room
-schedule without logging in again. Creating bookings remains disabled until the
-email address is verified.
+| Змінна                  | Призначення                                          | Значення за замовчуванням                          |
+| ----------------------- | ---------------------------------------------------- | -------------------------------------------------- |
+| `POSTGRES_DB`           | Назва бази PostgreSQL у Docker                       | `meetly`                                           |
+| `POSTGRES_USER`         | Користувач PostgreSQL у Docker                       | `meetly`                                           |
+| `POSTGRES_PASSWORD`     | Пароль PostgreSQL у Docker                           | `meetly`                                           |
+| `DATABASE_URL`          | Рядок підключення Prisma до PostgreSQL               | `postgresql://meetly:meetly@localhost:5434/meetly` |
+| `NOTIFY_BEFORE_MINUTES` | За скільки хвилин створювати сповіщення              | `10`                                               |
+| `CRON_SECRET`           | Секрет доступу до внутрішнього notification endpoint | потрібно замінити                              |
 
-Verification tokens expire after one hour and are stored in PostgreSQL only as
-SHA-256 hashes. In development, registration and resend requests print a
-highlighted verification URL to the server log. SMTP delivery is intentionally
-not implemented at this stage.
+## Тестові користувачі
 
-When the app runs in Docker, follow the link in the `app` service log:
+Seed створює двох користувачів із підтвердженим email:
+
+| Ім’я   | Email                | Пароль        |
+| ------ | -------------------- | ------------- |
+| Андрій | `andriy@example.com` | `Potuzhno123` |
+| Павло  | `pavlo@example.com`  | `Potuzhno123` |
+
+Також створюються:
+
+- 6 переговорних кімнат;
+- кілька майбутніх демонстраційних бронювань;
+- одне минуле демонстраційне бронювання.
+
+Seed є idempotent: його можна запускати повторно без створення дублікатів.
+
+Повторний запуск seed локально:
+
+```bash
+npx prisma db seed
+```
+
+Повторний запуск seed усередині Docker:
+
+```bash
+docker compose exec app npx prisma db seed
+```
+
+## Правила бронювання
+
+Бронювання повинно відповідати таким умовам:
+
+- назва містить від 1 до 100 символів;
+- початок і кінець кратні 30 хвилинам;
+- тривалість становить від 30 хвилин до 4 годин;
+- час початку знаходиться в майбутньому;
+- бронювання повністю знаходиться в робочих годинах офісу;
+- email користувача підтверджений;
+- вибрана кімната існує;
+- часовий інтервал не перетинається з іншим бронюванням кімнати.
+
+Усі правила повторно перевіряються на сервері. Клієнтська валідація
+використовується лише для покращення UX і не є джерелом істини.
+
+## Перетини бронювань
+
+Часові інтервали розглядаються як напіввідкриті:
+
+```text
+[startAt, endAt)
+```
+
+Перетин двох бронювань визначається умовою:
+
+```ts
+startA < endB && startB < endA
+```
+
+Тому сусідні бронювання не конфліктують:
+
+```text
+10:00–11:00
+11:00–12:00
+```
+
+Водночас часткове, повне та вкладене перекриття вважається конфліктом.
+
+## Захист від race condition
+
+Перевірки лише на рівні застосунку недостатньо: два паралельні запити можуть
+одночасно побачити слот вільним.
+
+Тому кожне бронювання додатково розбивається на 30-хвилинні записи
+`BookingSlot`. У PostgreSQL встановлено унікальне обмеження:
+
+```text
+(roomId, startsAt)
+```
+
+Створення бронювання та його слотів виконується в транзакції. Якщо два запити
+одночасно намагаються зайняти один слот, один із них порушує унікальне
+обмеження, транзакція відкочується, а API повертає зрозумілу помилку про
+зайнятий час.
+
+Завдяки цьому в базі не можуть з’явитися два бронювання однієї кімнати на один
+30-хвилинний слот.
+
+## Робота з часом
+
+Час бронювання зберігається в PostgreSQL як `TIMESTAMPTZ` і обробляється як
+абсолютний момент у UTC.
+
+Робочі години всіх кімнат:
+
+```text
+09:00–19:00
+```
+
+Перевірка робочих годин виконується в часовому поясі офісу:
+
+```text
+Europe/Kyiv
+```
+
+В інтерфейсі час відображається в часовому поясі браузера користувача. Якщо він
+відрізняється від офісного, інтерфейс показує відповідне пояснення.
+
+Наприклад, той самий абсолютний момент може відображатися як:
+
+```text
+10:00 у Києві
+09:00 у Берліні
+```
+
+Локальні рядки на кшталт `"10:00"` не зберігаються як час бронювання.
+
+## Повторювані бронювання
+
+Користувач може створити серію щотижневих бронювань.
+
+Перед створенням сервер:
+
+1. обчислює всі повторення серії;
+2. перевіряє час кожного повторення;
+3. перевіряє конфлікти для всіх 30-хвилинних слотів;
+4. створює серію та всі бронювання в одній транзакції.
+
+Якщо хоча б одне повторення конфліктує з існуючим бронюванням, уся операція
+скасовується.
+
+Під час скасування можна видалити:
+
+- лише вибране повторення;
+- усі майбутні повторення цієї серії.
+
+Минулі бронювання не видаляються.
+
+## Підтвердження email
+
+Після реєстрації користувач одразу отримує сесію та може переглядати розклад,
+але створення бронювань залишається недоступним до підтвердження email.
+
+У dev-режимі SMTP не використовується. Посилання підтвердження виводиться в лог
+сервера.
+
+Для Docker переглянути його можна командою:
 
 ```bash
 docker compose logs -f app
 ```
 
-Seed users `andriy@example.com` and `pavlo@example.com` are already verified.
+Verification token:
 
-## Notifications
+- діє одну годину;
+- зберігається в PostgreSQL лише як SHA-256 hash;
+- може бути повторно згенерований через форму повторного надсилання.
 
-Meetly creates an unread notification when a current booking ends within
-`NOTIFY_BEFORE_MINUTES` and another booking starts immediately afterward in the
-same room. A database unique constraint makes repeated generator runs safe, and
-deleting either booking removes the notification through `ON DELETE CASCADE`.
+Тестові користувачі з seed уже мають підтверджений email.
 
-Set `NOTIFY_BEFORE_MINUTES` and a random `CRON_SECRET` of at least 32 characters
-in `.env`. An external scheduler must call the internal endpoint once per
-minute:
+## Сповіщення
+
+Якщо поточне бронювання завершується протягом наступних `NOTIFY_BEFORE_MINUTES`,
+а інше бронювання цієї кімнати починається одразу після нього, автор поточного
+бронювання отримує внутрішнє сповіщення.
+
+Для генерації сповіщень зовнішній scheduler повинен раз на хвилину викликати:
+
+```text
+POST /api/internal/notifications/run
+```
+
+Приклад запиту:
 
 ```bash
 curl --request POST \
@@ -52,24 +346,127 @@ curl --request POST \
   http://localhost:3000/api/internal/notifications/run
 ```
 
-Use HTTPS when the endpoint is exposed outside local development, and keep the
-secret in the scheduler's secret storage.
+У production endpoint потрібно викликати лише через HTTPS, а `CRON_SECRET`
+зберігати в secret storage scheduler.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Повторний запуск генератора не створює дублікати: у базі є унікальне обмеження
+для пари поточного та наступного бронювання.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Якщо будь-яке з двох бронювань скасоване, пов’язане сповіщення видаляється через
+`ON DELETE CASCADE`.
 
-## Learn More
+Зовнішній scheduler не входить до Docker Compose і налаштовується окремо.
 
-To learn more about Next.js, take a look at the following resources:
+## Безпека
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- email нормалізується через `trim().toLowerCase()`;
+- пароль має довжину від 8 до 72 символів;
+- паролі зберігаються лише як bcrypt hash;
+- session token і verification token не зберігаються відкрито;
+- поточний користувач визначається сервером із сесії;
+- `userId` автора бронювання не приймається від клієнта;
+- право скасування перевіряється на сервері;
+- чужі бронювання не можна скасувати прямим API-запитом;
+- секрети не повертаються клієнту та не повинні потрапляти до логів.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Тести
 
-## Deploy on Vercel
+Запустити всі unit- і route-тести:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+npm test
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Перевірити ESLint:
+
+```bash
+npm run lint
+```
+
+Перевірити production build:
+
+```bash
+npm run build
+```
+
+Тести покривають:
+
+- нормалізацію та валідацію авторизаційних даних;
+- роботу сесій і підтвердження email;
+- перевірку робочих годин;
+- мінімальну та максимальну тривалість бронювання;
+- сусідні, частково перекриті, вкладені та повністю однакові інтервали;
+- створення звичайних і повторюваних бронювань;
+- скасування власного бронювання та відмову для чужого;
+- пагінацію історії;
+- побудову тижневого розкладу;
+- генерацію сповіщень;
+- HTTP API.
+
+### Інтеграційні тести
+
+Інтеграційні тести використовують окрему PostgreSQL-базу через
+`TEST_DATABASE_URL`.
+
+Приклад:
+
+```bash
+export TEST_DATABASE_URL=postgresql://user:password@localhost:5432/meetly_test
+DATABASE_URL="$TEST_DATABASE_URL" npx prisma migrate deploy
+npm test
+```
+
+Використовуйте лише окрему тестову базу, дані якої можна безпечно змінювати.
+
+Якщо `TEST_DATABASE_URL` не задано, PostgreSQL integration-тести пропускаються,
+а решта test suite продовжує виконуватися.
+
+## Архітектура
+
+Проєкт розділений на кілька шарів:
+
+```text
+src/
+├── app/          Next.js pages, layouts і Route Handlers
+├── components/   спільні UI-компоненти
+├── modules/      feature-модулі, схеми, domain-логіка та UI
+├── server/       Prisma, сесії, авторизація й операції з базою
+└── lib/          невеликі спільні утиліти та конфігурація
+
+prisma/
+├── migrations/   міграції PostgreSQL
+├── schema.prisma схема бази
+└── seed.ts       idempotent seed
+```
+
+Основні архітектурні правила:
+
+- React Client Components не імпортують Prisma або серверний код;
+- Route Handlers валідовують запит, визначають користувача із сесії та
+  викликають серверну операцію;
+- бізнес-правила часу та бронювань не залежать від React або Next.js;
+- доступ до PostgreSQL виконується через один екземпляр Prisma Client;
+- права доступу перевіряються на серверній межі.
+
+## Основні команди
+
+| Команда                     | Призначення                       |
+| --------------------------- | --------------------------------- |
+| `npm run dev`               | Запустити dev-сервер              |
+| `npm run build`             | Перевірити production build       |
+| `npm run start`             | Запустити зібраний Next.js        |
+| `npm run lint`              | Запустити ESLint                  |
+| `npm test`                  | Запустити Vitest                  |
+| `npx prisma generate`       | Згенерувати Prisma Client         |
+| `npx prisma migrate deploy` | Застосувати наявні міграції       |
+| `npx prisma db seed`        | Запустити seed                    |
+| `docker compose up --build` | Запустити застосунок і PostgreSQL |
+
+## Відомі обмеження
+
+- окремої адміністративної панелі для кімнат немає — кімнати створюються через
+  seed;
+- у dev-режимі email не надсилається через SMTP, а посилання виводиться в лог;
+- планувальник для генерації сповіщень потрібно налаштувати окремо;
+- Docker Compose призначений насамперед для локального запуску та перевірки
+  проєкту.

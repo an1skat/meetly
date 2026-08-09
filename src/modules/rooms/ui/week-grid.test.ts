@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import type { BookingSegment, WeekDay } from '../schedule'
-import { getInitialMobileDayIndex, layoutBookingSegments } from './week-grid'
+import {
+	getInitialMobileDayIndex,
+	getNextSlotIndex,
+	isCompactBookingSegment,
+	layoutBookingSegments
+} from './week-grid'
 
 function segment(
 	id: string,
@@ -84,5 +89,30 @@ describe('getInitialMobileDayIndex', () => {
 		expect(
 			getInitialMobileDayIndex([day('2026-08-10'), day('2026-08-11')])
 		).toBe(0)
+	})
+})
+
+describe('slot keyboard navigation', () => {
+	const slots = [
+		{ dayIndex: 0, top: 10 },
+		{ dayIndex: 0, top: 20 },
+		{ dayIndex: 1, top: 12 },
+		{ dayIndex: 1, top: 30 }
+	]
+
+	it('moves by time within a day and by the closest time across days', () => {
+		expect(getNextSlotIndex(slots, 0, 'ArrowDown')).toBe(1)
+		expect(getNextSlotIndex(slots, 1, 'ArrowUp')).toBe(0)
+		expect(getNextSlotIndex(slots, 1, 'ArrowRight')).toBe(2)
+		expect(getNextSlotIndex(slots, 2, 'ArrowLeft')).toBe(0)
+		expect(getNextSlotIndex(slots, 3, 'Home')).toBe(2)
+		expect(getNextSlotIndex(slots, 2, 'End')).toBe(3)
+	})
+})
+
+describe('compact booking cards', () => {
+	it('uses the compact layout only for a single 30-minute slot', () => {
+		expect(isCompactBookingSegment({ height: 5 }, 20)).toBe(true)
+		expect(isCompactBookingSegment({ height: 10 }, 20)).toBe(false)
 	})
 })

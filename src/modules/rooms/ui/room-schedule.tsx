@@ -211,7 +211,7 @@ export function RoomSchedule({
 				{participantCountField('participant-count')}
 
 				<div
-					role={filteredRooms.length > 0 ? 'listbox' : undefined}
+					role={filteredRooms.length > 0 ? 'group' : undefined}
 					aria-label={filteredRooms.length > 0 ? 'Оберіть кімнату' : undefined}
 					className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-1"
 				>
@@ -222,8 +222,7 @@ export function RoomSchedule({
 							<button
 								key={room.id}
 								type="button"
-								role="option"
-								aria-selected={isSelected}
+								aria-pressed={isSelected}
 								className={`rounded-2xl border p-3 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime ${
 									isSelected
 										? 'border-lime/30 bg-lime-soft text-ink'
@@ -387,7 +386,8 @@ export function RoomSchedule({
 
 				<div className="my-5 flex flex-wrap items-center justify-between gap-3 border-y border-line py-3">
 					<p className="text-sm text-muted">
-						Натисніть на вільний слот, щоб створити бронювання.
+						Натисніть на вільний слот, щоб створити бронювання. З клавіатури{' '}
+						переходьте між слотами стрілками.
 					</p>
 					<button
 						type="button"
