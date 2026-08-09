@@ -1,6 +1,20 @@
 import { MyBookingsList } from '@/modules/bookings/ui/my-bookings-list'
 
-export default function MyBookingsPage() {
+type MyBookingsPageProps = {
+	searchParams: Promise<{
+		booking?: string | string[]
+		type?: string | string[]
+	}>
+}
+
+export default async function MyBookingsPage({
+	searchParams
+}: MyBookingsPageProps) {
+	const query = await searchParams
+	const initialBookingId =
+		typeof query.booking === 'string' ? query.booking : undefined
+	const initialType = query.type === 'past' ? 'past' : 'upcoming'
+
 	return (
 		<section className="space-y-7">
 			<header className="max-w-3xl">
@@ -15,7 +29,10 @@ export default function MyBookingsPage() {
 				</p>
 			</header>
 
-			<MyBookingsList />
+			<MyBookingsList
+				initialBookingId={initialBookingId}
+				initialType={initialType}
+			/>
 		</section>
 	)
 }

@@ -34,9 +34,7 @@ const request = new Request(`http://localhost/api/bookings/${bookingId}`, {
 })
 const context = { params: Promise.resolve({ id: bookingId }) }
 const updateBody = {
-	roomId: 'clh4k3j2l0000qwer1234asdf',
 	title: 'Оновлене планування',
-	startAt: '2099-07-01T06:00:00.000Z',
 	endAt: '2099-07-01T07:00:00.000Z'
 }
 
@@ -193,11 +191,27 @@ describe('PATCH /api/bookings/:id', () => {
 			bookingId,
 			{
 				...updateBody,
-				startAt: new Date(updateBody.startAt),
 				endAt: new Date(updateBody.endAt)
 			},
 			user.id
 		)
+	})
+
+	it('explains that a booking cannot be shortened', async () => {
+		updateBookingMock.mockResolvedValue({
+			ok: false,
+			reason: 'cannot-shorten'
+		})
+
+		const response = await PATCH(createPatchRequest(), context)
+
+		expect(response.status).toBe(400)
+		expect(await response.json()).toEqual({
+			message: 'Бронювання можна лише продовжити',
+			fieldErrors: {
+				endAt: ['Оберіть поточну або більшу тривалість']
+			}
+		})
 	})
 
 	it('updates an owned booking', async () => {

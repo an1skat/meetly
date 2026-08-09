@@ -39,12 +39,26 @@ const updateFailureResponses: Record<
 	UpdateBookingFailureReason,
 	BookingFailureResponse
 > = {
-	...bookingWriteFailureResponses,
+	order: bookingWriteFailureResponses.order,
+	slot: bookingWriteFailureResponses.slot,
+	duration: bookingWriteFailureResponses.duration,
+	'office-hours': bookingWriteFailureResponses['office-hours'],
+	past: bookingWriteFailureResponses.past,
+	'slot-taken': bookingWriteFailureResponses['slot-taken'],
 	'booking-started': {
 		status: 409,
 		body: {
 			message: 'Бронювання, яке вже почалося, не можна редагувати',
 			fieldErrors: {}
+		}
+	},
+	'cannot-shorten': {
+		status: 400,
+		body: {
+			message: 'Бронювання можна лише продовжити',
+			fieldErrors: {
+				endAt: ['Оберіть поточну або більшу тривалість']
+			}
 		}
 	},
 	'not-found': {

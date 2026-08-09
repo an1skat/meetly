@@ -1,6 +1,7 @@
 'use client'
 
 import { intervalsOverlap, SLOT_MINUTES } from '@/modules/bookings/time'
+import Link from 'next/link'
 import { useState, type KeyboardEvent } from 'react'
 import {
 	DISPLAY_TIME_LABELS,
@@ -19,12 +20,6 @@ type WeekGridProps = {
 	emphasizeOwnBookings: boolean
 	now: Date
 	timeZone: string
-	onCancelBooking: (
-		booking: Pick<
-			ScheduleBooking,
-			'id' | 'title' | 'recurringSeriesId'
-		>
-	) => void
 	onSelectSlot: (startAt: Date) => void
 }
 
@@ -219,7 +214,6 @@ export function WeekGrid({
 	emphasizeOwnBookings,
 	now,
 	timeZone,
-	onCancelBooking,
 	onSelectSlot
 }: WeekGridProps) {
 	const [mobileDayKey, setMobileDayKey] = useState(
@@ -448,30 +442,25 @@ export function WeekGrid({
 							const ownerLabel = segment.isOwn
 								? 'ваше бронювання'
 								: segment.authorName
-
-							return (
-								<div
-									key={`${segment.id}-${segment.dayIndex}`}
-									className={`absolute z-10 overflow-hidden rounded-lg border px-2 text-xs shadow-sm ${isCompact ? 'flex items-center py-1' : 'py-1.5'} ${
-										segment.isOwn
-											? 'border-lime/50 bg-lime text-lime-ink'
-											: 'border-grape/15 bg-grape-soft text-grape'
-									} ${isPast ? 'border-dashed saturate-50' : ''} ${
-										emphasizeOwnBookings && segment.isOwn
-											? 'ring-2 ring-inset ring-lime-ink/35'
-											: ''
-									}`}
-									style={{
-										top: `${segment.top}%`,
-										left: `${dayWidth * dayPosition + (dayWidth * segment.columnIndex) / segment.columnCount}%`,
-										width: `${dayWidth / segment.columnCount}%`,
-										height: `${segment.height}%`
-									}}
-									title={`${segment.title}: ${startLabel}–${endLabel} · ${ownerLabel}`}
-								>
-									<span
-										className={`block min-w-0 truncate font-semibold ${segment.isOwn ? 'pr-10 lg:pr-9' : ''}`}
-									>
+							const bookingTitle = `${segment.title}: ${startLabel}–${endLabel} · ${ownerLabel}`
+							const bookingClassName = `absolute z-10 overflow-hidden rounded-lg border px-2 text-xs shadow-sm ${isCompact ? 'flex items-center py-1' : 'py-1.5'} ${
+								segment.isOwn
+									? 'border-lime/50 bg-lime text-lime-ink outline-none focus-visible:ring-2 focus-visible:ring-lime-ink'
+									: 'border-grape/15 bg-grape-soft text-grape'
+							} ${isPast ? 'border-dashed saturate-50' : ''} ${
+								emphasizeOwnBookings && segment.isOwn
+									? 'ring-2 ring-inset ring-lime-ink/35'
+									: ''
+							}`
+							const bookingStyle = {
+								top: `${segment.top}%`,
+								left: `${dayWidth * dayPosition + (dayWidth * segment.columnIndex) / segment.columnCount}%`,
+								width: `${dayWidth / segment.columnCount}%`,
+								height: `${segment.height}%`
+							}
+							const bookingContent = (
+								<>
+									<span className="block min-w-0 truncate font-semibold">
 										{segment.title}
 									</span>
 									{isCompact ? (
@@ -490,23 +479,34 @@ export function WeekGrid({
 											</span>
 										</>
 									)}
-									{segment.isOwn && new Date(segment.startAt) > now && (
-										<button
-											type="button"
-											aria-label={`Скасувати бронювання «${segment.title}»`}
-											className="absolute right-0.5 top-0.5 flex h-11 w-11 touch-manipulation items-center justify-center rounded-lg bg-lime-ink/10 text-lg leading-none outline-none hover:bg-lime-ink/20 focus-visible:ring-2 focus-visible:ring-lime-ink disabled:cursor-not-allowed disabled:opacity-60 lg:h-8 lg:w-8 lg:text-base"
-											title="Скасувати бронювання"
-											onClick={() =>
-												onCancelBooking({
-													id: segment.id,
-													title: segment.title,
-													recurringSeriesId: segment.recurringSeriesId
-												})
-											}
-										>
-											×
-										</button>
-									)}
+								</>
+							)
+
+							if (segment.isOwn) {
+								const bookingType = isPast ? 'past' : 'upcoming'
+
+								return (
+									<Link
+										key={`${segment.id}-${segment.dayIndex}`}
+										href={`/my-bookings?type=${bookingType}&booking=${encodeURIComponent(segment.id)}`}
+										aria-label={`Відкрити бронювання «${segment.title}» у моїх бронюваннях`}
+										className={bookingClassName}
+										style={bookingStyle}
+										title={`${bookingTitle}. Відкрити в моїх бронюваннях`}
+									>
+										{bookingContent}
+									</Link>
+								)
+							}
+
+							return (
+								<div
+									key={`${segment.id}-${segment.dayIndex}`}
+									className={bookingClassName}
+									style={bookingStyle}
+									title={bookingTitle}
+								>
+									{bookingContent}
 								</div>
 							)
 						})}

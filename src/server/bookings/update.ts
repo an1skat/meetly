@@ -1,5 +1,5 @@
 import { Prisma } from '@/generated/prisma/client'
-import type { CreateBookingInput } from '@/modules/bookings/schemas'
+import type { UpdateBookingInput } from '@/modules/bookings/schemas'
 import { getBookingSlotStarts } from '@/modules/bookings/slots'
 import {
 	validateBookingTime,
@@ -11,9 +11,9 @@ import { prisma } from '@/server/db/prisma'
 export type UpdateBookingFailureReason =
 	| BookingTimeValidationError
 	| 'booking-started'
+	| 'cannot-shorten'
 	| 'forbidden'
 	| 'not-found'
-	| 'room-not-found'
 	| 'slot-taken'
 
 export type UpdateBookingResult =
@@ -28,23 +28,19 @@ export type UpdateBookingResult =
 
 export async function updateBooking(
 	bookingId: string,
-	input: CreateBookingInput,
+	input: UpdateBookingInput,
 	userId: string,
 	now = new Date()
 ): Promise<UpdateBookingResult> {
-	const validationError = validateBookingTime(input.startAt, input.endAt, now)
-
-	if (validationError) {
-		return { ok: false, reason: validationError }
-	}
-
 	try {
 		return await prisma.$transaction(async transaction => {
 			const existingBooking = await transaction.booking.findUnique({
 				where: { id: bookingId },
 				select: {
 					userId: true,
-					startAt: true
+					roomId: true,
+					startAt: true,
+					endAt: true
 				}
 			})
 
@@ -60,38 +56,40 @@ export async function updateBooking(
 				return { ok: false, reason: 'booking-started' }
 			}
 
-			const room = await transaction.room.findUnique({
-				where: { id: input.roomId },
-				select: { id: true }
-			})
-
-			if (!room) {
-				return { ok: false, reason: 'room-not-found' }
+			if (input.endAt < existingBooking.endAt) {
+				return { ok: false, reason: 'cannot-shorten' }
 			}
 
-			await transaction.bookingSlot.deleteMany({
-				where: { bookingId }
-			})
-
-			const slotData = getBookingSlotStarts(input.startAt, input.endAt).map(
-				startsAt => ({
-					roomId: input.roomId,
-					startsAt
-				})
+			const validationError = validateBookingTime(
+				existingBooking.startAt,
+				input.endAt,
+				now
 			)
+
+			if (validationError) {
+				return { ok: false, reason: validationError }
+			}
+
+			const isExtension = input.endAt > existingBooking.endAt
 			const booking = await transaction.booking.update({
 				where: { id: bookingId },
-				data: {
-					title: input.title,
-					roomId: input.roomId,
-					startAt: input.startAt,
-					endAt: input.endAt,
-					slots: {
-						createMany: {
-							data: slotData
+				data: isExtension
+					? {
+							title: input.title,
+							endAt: input.endAt,
+							slots: {
+								createMany: {
+									data: getBookingSlotStarts(
+										existingBooking.endAt,
+										input.endAt
+									).map(startsAt => ({
+										roomId: existingBooking.roomId,
+										startsAt
+									}))
+								}
+							}
 						}
-					}
-				},
+					: { title: input.title },
 				select: bookingSelect
 			})
 

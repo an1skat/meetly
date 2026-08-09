@@ -4,7 +4,6 @@ import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
-import { CancelBookingDialog } from '@/modules/bookings/ui/cancel-booking-dialog'
 import { CreateBookingDialog } from '@/modules/bookings/ui/create-booking-dialog'
 import { roomsQuerySchema } from '@/modules/rooms/schemas'
 import { useQuery } from '@tanstack/react-query'
@@ -85,10 +84,6 @@ export function RoomSchedule({
 	const [participantCount, setParticipantCount] = useState('')
 	const [emphasizeOwnBookings, setEmphasizeOwnBookings] = useState(true)
 	const [selectedStartAt, setSelectedStartAt] = useState<Date | null>(null)
-	const [bookingToCancel, setBookingToCancel] = useState<Pick<
-		ScheduleBooking,
-		'id' | 'title' | 'recurringSeriesId'
-	> | null>(null)
 	const [successMessage, setSuccessMessage] = useState<string | null>(null)
 	const [prevWeekParams, setPrevWeekParams] = useState({
 		initialWeek,
@@ -176,7 +171,6 @@ export function RoomSchedule({
 	const selectRoom = (roomId: string) => {
 		setSelectedRoomId(roomId)
 		setSelectedStartAt(null)
-		setBookingToCancel(null)
 		setSuccessMessage(null)
 	}
 	const participantCountField = (id: string, className = 'h-11') => (
@@ -441,13 +435,7 @@ export function RoomSchedule({
 							emphasizeOwnBookings={emphasizeOwnBookings}
 							now={now}
 							timeZone={timeZone}
-							onCancelBooking={booking => {
-								setSelectedStartAt(null)
-								setBookingToCancel(booking)
-								setSuccessMessage(null)
-							}}
 							onSelectSlot={startAt => {
-								setBookingToCancel(null)
 								setSelectedStartAt(startAt)
 								setSuccessMessage(null)
 							}}
@@ -470,17 +458,6 @@ export function RoomSchedule({
 					/>
 				)}
 
-				{bookingToCancel && (
-					<CancelBookingDialog
-						booking={bookingToCancel}
-						onClose={() => setBookingToCancel(null)}
-						onCancelled={async () => {
-							await bookingsQuery.refetch()
-							setBookingToCancel(null)
-							setSuccessMessage('Бронювання успішно скасовано.')
-						}}
-					/>
-				)}
 					</>
 				) : (
 					<div className="grid min-h-[34rem] place-items-center py-12 text-center">

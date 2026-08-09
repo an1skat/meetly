@@ -4,9 +4,10 @@ import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import { CancelBookingDialog } from '@/modules/bookings/ui/cancel-booking-dialog'
+import { EditBookingDialog } from '@/modules/bookings/ui/edit-booking-dialog'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 type BookingType = 'upcoming' | 'past'
 
@@ -35,6 +36,11 @@ type MyBookingsResponse = {
 
 type ErrorResponse = {
 	message?: string
+}
+
+type MyBookingsListProps = {
+	initialBookingId?: string
+	initialType?: BookingType
 }
 
 async function fetchMyBookings(
@@ -84,11 +90,17 @@ const dayFormatter = new Intl.DateTimeFormat('uk-UA', { day: '2-digit' })
 const monthFormatter = new Intl.DateTimeFormat('uk-UA', { month: 'short' })
 const weekdayFormatter = new Intl.DateTimeFormat('uk-UA', { weekday: 'short' })
 
-export function MyBookingsList() {
+export function MyBookingsList({
+	initialBookingId,
+	initialType = 'upcoming'
+}: MyBookingsListProps) {
 	const queryClient = useQueryClient()
-	const [type, setType] = useState<BookingType>('upcoming')
+	const didFocusInitialBooking = useRef(false)
+	const [type, setType] = useState<BookingType>(initialType)
 	const [page, setPage] = useState(1)
 	const [bookingToCancel, setBookingToCancel] = useState<MyBooking | null>(null)
+	const [bookingToEdit, setBookingToEdit] = useState<MyBooking | null>(null)
+	const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
 	const query = useQuery({
 		queryKey: ['my-bookings', type, page],
@@ -98,14 +110,37 @@ export function MyBookingsList() {
 	const bookings = query.data?.bookings ?? []
 	const pagination = query.data?.pagination
 
+	useEffect(() => {
+		if (
+			!initialBookingId ||
+			didFocusInitialBooking.current ||
+			!query.data?.bookings.some(booking => booking.id === initialBookingId)
+		) {
+			return
+		}
+
+		const bookingElement = document.getElementById(
+			`booking-${initialBookingId}`
+		)
+
+		if (bookingElement) {
+			didFocusInitialBooking.current = true
+			bookingElement.scrollIntoView({ block: 'center' })
+		}
+	}, [query.data, initialBookingId])
+
 	const selectType = (nextType: BookingType) => {
 		setType(nextType)
 		setPage(1)
 		setBookingToCancel(null)
+		setBookingToEdit(null)
+		setSuccessMessage(null)
 	}
 
 	return (
 		<div className="space-y-5">
+			{successMessage && <Alert variant="success">{successMessage}</Alert>}
+
 			<div
 				role="group"
 				aria-label="Тип бронювань"
@@ -180,7 +215,12 @@ export function MyBookingsList() {
 						return (
 							<article
 								key={booking.id}
-								className="rounded-2xl border border-line bg-surface p-4 shadow-lg shadow-black/10 transition-colors hover:border-lime/30 sm:p-5"
+								id={`booking-${booking.id}`}
+								className={`scroll-mt-6 rounded-2xl border bg-surface p-4 shadow-lg shadow-black/10 transition-colors hover:border-lime/30 sm:p-5 ${
+									booking.id === initialBookingId
+										? 'border-lime ring-2 ring-lime/25'
+										: 'border-line'
+								}`}
 							>
 								<div className="grid gap-4 sm:grid-cols-[4.5rem_minmax(0,1fr)_auto] sm:items-center">
 									<div className="grid min-h-20 place-items-center rounded-2xl bg-lime-soft px-2 py-2 text-center">
@@ -214,6 +254,19 @@ export function MyBookingsList() {
 									</div>
 
 									<div className="flex flex-wrap gap-2">
+										{booking.canCancel && (
+											<Button
+												variant="secondary"
+												onClick={() => {
+													setBookingToCancel(null)
+													setBookingToEdit(booking)
+													setSuccessMessage(null)
+												}}
+											>
+												Редагувати
+											</Button>
+										)}
+
 										<Link
 											href={`/rooms?roomId=${encodeURIComponent(
 												booking.room.id
@@ -226,7 +279,11 @@ export function MyBookingsList() {
 										{booking.canCancel && (
 											<Button
 												variant="danger"
-												onClick={() => setBookingToCancel(booking)}
+												onClick={() => {
+													setBookingToEdit(null)
+													setBookingToCancel(booking)
+													setSuccessMessage(null)
+												}}
 											>
 												Скасувати
 											</Button>
@@ -276,6 +333,22 @@ export function MyBookingsList() {
 						await queryClient.invalidateQueries({
 							queryKey: ['my-bookings']
 						})
+					}}
+				/>
+			)}
+
+			{bookingToEdit && (
+				<EditBookingDialog
+					booking={bookingToEdit}
+					onClose={() => setBookingToEdit(null)}
+					onUpdated={async () => {
+						setBookingToEdit(null)
+						setSuccessMessage('Бронювання успішно оновлено.')
+
+						await Promise.all([
+							queryClient.invalidateQueries({ queryKey: ['my-bookings'] }),
+							queryClient.invalidateQueries({ queryKey: ['room-bookings'] })
+						])
 					}}
 				/>
 			)}

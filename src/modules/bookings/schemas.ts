@@ -32,7 +32,10 @@ export const createBookingRequestSchema = createBookingSchema.extend({
 	recurrence: recurrenceSchema.optional()
 })
 
-export const updateBookingSchema = createBookingSchema
+export const updateBookingSchema = createBookingSchema.pick({
+	title: true,
+	endAt: true
+})
 
 export const bookingRangeSchema = z
 	.object({
@@ -45,6 +48,8 @@ export const bookingRangeSchema = z
 	})
 
 export type CreateBookingInput = z.infer<typeof createBookingSchema>
+
+export type UpdateBookingInput = z.infer<typeof updateBookingSchema>
 
 export type CreateRecurringBookingInput = CreateBookingInput & {
 	repeatCount: z.infer<typeof recurrenceSchema>['count']
