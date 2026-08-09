@@ -80,6 +80,10 @@ const timeFormatter = new Intl.DateTimeFormat('uk-UA', {
 	minute: '2-digit'
 })
 
+const dayFormatter = new Intl.DateTimeFormat('uk-UA', { day: '2-digit' })
+const monthFormatter = new Intl.DateTimeFormat('uk-UA', { month: 'short' })
+const weekdayFormatter = new Intl.DateTimeFormat('uk-UA', { weekday: 'short' })
+
 export function MyBookingsList() {
 	const queryClient = useQueryClient()
 	const [type, setType] = useState<BookingType>('upcoming')
@@ -105,16 +109,16 @@ export function MyBookingsList() {
 			<div
 				role="tablist"
 				aria-label="Тип бронювань"
-				className="inline-flex rounded-lg border border-zinc-200 bg-white p-1"
+				className="inline-flex rounded-xl border border-line bg-surface p-1"
 			>
 				<button
 					type="button"
 					role="tab"
 					aria-selected={type === 'upcoming'}
-					className={`min-h-10 rounded-md px-4 text-sm font-medium ${
+					className={`min-h-10 rounded-lg px-4 text-sm font-semibold transition-colors ${
 						type === 'upcoming'
-							? 'bg-zinc-900 text-white'
-							: 'text-zinc-600 hover:bg-zinc-100'
+							? 'bg-lime text-lime-ink'
+							: 'text-muted hover:bg-raised hover:text-ink'
 					}`}
 					onClick={() => selectType('upcoming')}
 				>
@@ -125,10 +129,10 @@ export function MyBookingsList() {
 					type="button"
 					role="tab"
 					aria-selected={type === 'past'}
-					className={`min-h-10 rounded-md px-4 text-sm font-medium ${
+					className={`min-h-10 rounded-lg px-4 text-sm font-semibold transition-colors ${
 						type === 'past'
-							? 'bg-zinc-900 text-white'
-							: 'text-zinc-600 hover:bg-zinc-100'
+							? 'bg-lime text-lime-ink'
+							: 'text-muted hover:bg-raised hover:text-ink'
 					}`}
 					onClick={() => selectType('past')}
 				>
@@ -137,9 +141,9 @@ export function MyBookingsList() {
 			</div>
 
 			{query.isPending ? (
-				<div className="flex min-h-40 items-center justify-center gap-3 rounded-xl border border-zinc-200 bg-white">
+				<div className="flex min-h-40 items-center justify-center gap-3 rounded-2xl border border-line bg-surface">
 					<Spinner label="Завантаження бронювань" />
-					<span className="text-sm text-zinc-600">
+					<span className="text-sm text-muted">
 						Завантажуємо бронювання…
 					</span>
 				</div>
@@ -178,40 +182,37 @@ export function MyBookingsList() {
 						return (
 							<article
 								key={booking.id}
-								className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-5"
+								className="rounded-2xl border border-line bg-surface p-4 shadow-lg shadow-black/10 transition-colors hover:border-lime/30 sm:p-5"
 							>
-								<div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-									<div>
-										<h2 className="font-semibold">{booking.title}</h2>
+								<div className="grid gap-4 sm:grid-cols-[4.5rem_minmax(0,1fr)_auto] sm:items-center">
+									<div className="grid min-h-20 place-items-center rounded-2xl bg-lime-soft px-2 py-2 text-center">
+										<span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-lime">
+											{weekdayFormatter.format(startAt).replace(/\.$/, '')}
+										</span>
+										<strong className="text-2xl leading-none">
+											{dayFormatter.format(startAt)}
+										</strong>
+										<span className="text-xs text-muted">
+											{monthFormatter.format(startAt).replace(/\.$/, '')}
+										</span>
+									</div>
 
-										<dl className="mt-3 grid gap-2 text-sm text-zinc-600">
-											<div>
-												<dt className="inline font-medium text-zinc-900">
-													Дата:{' '}
-												</dt>
-												<dd className="inline">
-													{dateFormatter.format(startAt)}
-												</dd>
-											</div>
-
-											<div>
-												<dt className="inline font-medium text-zinc-900">
-													Час:{' '}
-												</dt>
-												<dd className="inline">
-													{timeFormatter.format(startAt)}
-													{'–'}
-													{timeFormatter.format(endAt)}
-												</dd>
-											</div>
-
-											<div>
-												<dt className="inline font-medium text-zinc-900">
-													Кімната:{' '}
-												</dt>
-												<dd className="inline">{booking.room.name}</dd>
-											</div>
-										</dl>
+									<div className="min-w-0">
+										<p className="text-xs text-muted">
+											{dateFormatter.format(startAt)}
+										</p>
+										<h2 className="mt-1 truncate text-lg font-bold">
+											{booking.title}
+										</h2>
+										<div className="mt-2 flex flex-wrap gap-2 text-sm text-muted">
+											<span className="rounded-lg bg-raised px-2.5 py-1">
+												{timeFormatter.format(startAt)}–
+												{timeFormatter.format(endAt)}
+											</span>
+											<span className="rounded-lg bg-raised px-2.5 py-1">
+												{booking.room.name}
+											</span>
+										</div>
 									</div>
 
 									<div className="flex flex-wrap gap-2">
@@ -219,7 +220,7 @@ export function MyBookingsList() {
 											href={`/rooms?roomId=${encodeURIComponent(
 												booking.room.id
 											)}&week=${encodeURIComponent(booking.startAt)}`}
-											className="inline-flex h-10 items-center justify-center rounded-md border border-zinc-300 bg-white px-4 text-sm font-medium hover:bg-zinc-100"
+											className="inline-flex h-10 items-center justify-center rounded-xl border border-line bg-raised px-4 text-sm font-semibold text-ink transition-colors hover:bg-line/70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime"
 										>
 											Відкрити розклад
 										</Link>
@@ -253,7 +254,7 @@ export function MyBookingsList() {
 						← Назад
 					</Button>
 
-					<span className="text-sm text-zinc-600">
+					<span className="text-sm text-muted">
 						Сторінка {pagination.page} з {pagination.totalPages}
 					</span>
 

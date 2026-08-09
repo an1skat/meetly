@@ -146,12 +146,12 @@ export function NotificationsBell() {
 			<details className="relative">
 				<summary
 					aria-label={`Сповіщення: ${notifications.length} непрочитаних`}
-					className="relative flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-md border border-zinc-200 bg-white text-lg outline-none hover:bg-zinc-100 focus-visible:ring-2 focus-visible:ring-zinc-500 [&::-webkit-details-marker]:hidden"
+					className="relative flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-xl border border-line bg-raised text-base outline-none hover:bg-line/70 focus-visible:ring-2 focus-visible:ring-lime [&::-webkit-details-marker]:hidden"
 				>
 					<span aria-hidden="true">🔔</span>
 
 					{notifications.length > 0 && (
-						<span className="absolute -right-1 -top-1 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white">
+						<span className="absolute -right-1 -top-1 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-coral px-1 text-[10px] font-semibold text-lime-ink">
 							{notifications.length}
 						</span>
 					)}
@@ -159,34 +159,34 @@ export function NotificationsBell() {
 
 				<div
 					aria-busy={query.isPending}
-					className="absolute right-0 top-12 z-50 w-[min(22rem,calc(100vw-2rem))] rounded-xl border border-zinc-200 bg-white p-3 shadow-xl"
+					className="absolute right-0 top-12 z-50 w-[min(22rem,calc(100vw-2rem))] rounded-2xl border border-line bg-raised p-3 text-ink shadow-2xl shadow-black/30"
 				>
 					<h2 className="px-2 py-1 text-sm font-semibold">Сповіщення</h2>
 
 					{query.isPending ? (
-						<p className="p-2 text-sm text-zinc-500">Завантажуємо…</p>
+						<p className="p-2 text-sm text-muted">Завантажуємо…</p>
 					) : query.isError ? (
 						<p
 							role="alert"
-							className="p-2 text-sm text-red-600"
+							className="p-2 text-sm text-coral"
 						>
 							{query.error.message}
 						</p>
 					) : notifications.length === 0 ? (
-						<p className="p-2 text-sm text-zinc-500">Нових сповіщень немає.</p>
+						<p className="p-2 text-sm text-muted">Нових сповіщень немає.</p>
 					) : (
 						<ul className="grid gap-2">
 							{notifications.map(notification => (
 								<li
 									key={notification.id}
-									className="rounded-lg bg-zinc-50 p-3"
+									className="rounded-xl border border-line bg-surface p-3"
 								>
 									<p className="text-sm">
 										{getNotificationMessage(notification)}
 									</p>
 
 									<Button
-										className="mt-2 h-9 px-3 focus-visible:ring-2 focus-visible:ring-zinc-500"
+										className="mt-2 h-9 px-3"
 										variant="secondary"
 										disabled={mutation.isPending}
 										onClick={() => mutation.mutate(notification.id)}
@@ -204,7 +204,7 @@ export function NotificationsBell() {
 					{mutation.isError && (
 						<p
 							role="alert"
-							className="p-2 text-sm text-red-600"
+							className="p-2 text-sm text-coral"
 						>
 							{mutation.error.message}
 						</p>
@@ -215,7 +215,7 @@ export function NotificationsBell() {
 			{visibleToast && (
 				<div
 					role="status"
-					className="fixed bottom-4 right-4 z-100 max-w-sm rounded-xl border border-zinc-200 bg-white p-4 text-sm shadow-xl"
+					className="fixed bottom-4 right-4 z-100 max-w-sm rounded-2xl border border-line bg-raised p-4 text-sm text-ink shadow-2xl shadow-black/30"
 				>
 					{getNotificationMessage(visibleToast)}
 				</div>

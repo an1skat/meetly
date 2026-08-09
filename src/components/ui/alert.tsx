@@ -7,19 +7,19 @@ type AlertProps = {
 }
 
 const variants = {
-	info: 'border-blue-200 bg-blue-50 text-blue-900',
-	success: 'border-green-200 bg-green-50 text-green-900',
-	error: 'border-red-200 bg-red-50 text-red-900'
+	info: 'border-line bg-raised text-ink',
+	success: 'border-lime/40 bg-lime-soft text-ink',
+	error: 'border-coral/50 bg-coral/10 text-ink'
 }
 
 export function Alert({ children, title, variant = 'info' }: AlertProps) {
 	return (
 		<div
 			role={variant === 'error' ? 'alert' : 'status'}
-			className={`rounded-md border p-4 text-sm ${variants[variant]}`}
+			className={`rounded-2xl border p-4 text-sm ${variants[variant]}`}
 		>
-			{title && <p className="mb-1 font-medium">{title}</p>}
-			<div>{children}</div>
+			{title && <p className="mb-1 font-semibold">{title}</p>}
+			<div className="text-muted">{children}</div>
 		</div>
 	)
 }

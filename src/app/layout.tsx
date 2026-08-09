@@ -14,7 +14,7 @@ export default function RootLayout({
 }>) {
 	return (
 		<html lang="uk">
-			<body className="min-h-screen bg-zinc-50 text-zinc-950">
+			<body className="min-h-screen bg-canvas text-ink">
 				<Providers>{children}</Providers>
 			</body>
 		</html>

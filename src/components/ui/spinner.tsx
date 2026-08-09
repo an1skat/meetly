@@ -10,7 +10,7 @@ export function Spinner({ label = 'Завантаження' }: SpinnerProps) {
 		>
 			<span
 				aria-hidden="true"
-				className="size-5 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900"
+				className="size-5 animate-spin rounded-full border-2 border-line border-t-lime"
 			/>
 			<span className="sr-only">{label}</span>
 		</span>

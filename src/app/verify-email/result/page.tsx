@@ -26,7 +26,7 @@ export default async function VerifyEmailResultPage({
 		}
 
 		return (
-			<section className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
+			<section className="rounded-3xl border border-line bg-surface p-6 text-ink shadow-2xl shadow-black/20 sm:p-8">
 				<Alert
 					title="Email підтверджено"
 					variant="success"
@@ -36,7 +36,7 @@ export default async function VerifyEmailResultPage({
 
 				<Link
 					href="/login"
-					className="mt-6 inline-block rounded-sm font-medium underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-zinc-900"
+					className="mt-6 inline-block rounded-sm font-semibold text-lime underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-lime"
 				>
 					Перейти до входу
 				</Link>
@@ -64,7 +64,7 @@ export default async function VerifyEmailResultPage({
 					}
 
 	return (
-		<section className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
+		<section className="rounded-3xl border border-line bg-surface p-6 text-ink shadow-2xl shadow-black/20 sm:p-8">
 			<Alert
 				title={failure.title}
 				variant="error"

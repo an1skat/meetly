@@ -21,6 +21,7 @@ export function LogoutButton() {
 	return (
 		<div className="grid justify-items-end gap-1">
 			<Button
+				className="h-9 px-3"
 				variant="secondary"
 				disabled={mutation.isPending}
 				onClick={() => mutation.mutate()}
@@ -31,7 +32,7 @@ export function LogoutButton() {
 			{mutation.isError && (
 				<p
 					role="alert"
-					className="max-w-48 text-right text-xs text-red-600"
+					className="max-w-48 text-right text-xs text-coral"
 				>
 					{mutation.error.message}
 				</p>

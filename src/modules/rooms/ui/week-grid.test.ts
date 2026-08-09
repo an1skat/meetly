@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { BookingSegment } from '../schedule'
-import { layoutBookingSegments } from './week-grid'
+import type { BookingSegment, WeekDay } from '../schedule'
+import { getInitialMobileDayIndex, layoutBookingSegments } from './week-grid'
 
 function segment(
 	id: string,
@@ -60,5 +60,29 @@ describe('layoutBookingSegments', () => {
 			{ id: 'b', columnIndex: 1, columnCount: 2 },
 			{ id: 'c', columnIndex: 0, columnCount: 1 }
 		])
+	})
+})
+
+describe('getInitialMobileDayIndex', () => {
+	const day = (key: string, isToday = false): WeekDay => ({
+		key,
+		date: new Date(`${key}T00:00:00.000Z`),
+		weekdayLabel: key,
+		dateLabel: key,
+		isPast: false,
+		isToday
+	})
+
+	it('opens today and falls back to the first day on another week', () => {
+		expect(
+			getInitialMobileDayIndex([
+				day('2026-08-03'),
+				day('2026-08-04'),
+				day('2026-08-05', true)
+			])
+		).toBe(2)
+		expect(
+			getInitialMobileDayIndex([day('2026-08-10'), day('2026-08-11')])
+		).toBe(0)
 	})
 })

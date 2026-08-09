@@ -11,10 +11,10 @@ export default async function ProtectedLayout({
 	const user = await requireUser()
 
 	return (
-		<div className="flex min-h-screen flex-col">
+		<div className="flex min-h-screen flex-col bg-canvas text-ink">
 			<Navigation user={user} />
 
-			<main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6">
+			<main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 sm:py-10">
 				{!user.emailVerifiedAt && (
 					<div className="mb-6">
 						<Alert title="Підтвердьте email">
@@ -25,7 +25,7 @@ export default async function ProtectedLayout({
 
 							<Link
 								href={`/verify-email/pending?email=${encodeURIComponent(user.email)}`}
-								className="mt-3 inline-flex h-10 items-center justify-center rounded-md bg-blue-700 px-4 font-medium text-white transition-colors hover:bg-blue-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+								className="mt-3 inline-flex h-10 items-center justify-center rounded-xl border border-lime/60 bg-lime px-4 font-semibold text-lime-ink transition-colors hover:bg-lime/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime"
 							>
 								Підтвердити email
 							</Link>

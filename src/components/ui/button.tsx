@@ -5,9 +5,9 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 }
 
 const variants = {
-	primary: 'bg-zinc-900 text-white hover:bg-zinc-700',
-	secondary: 'border border-zinc-300 bg-white hover:bg-zinc-100',
-	danger: 'bg-red-600 text-white hover:bg-red-500'
+	primary: 'border border-lime/60 bg-lime text-lime-ink hover:bg-lime/90',
+	secondary: 'border border-line bg-raised text-ink hover:bg-line/70',
+	danger: 'border border-coral/70 bg-coral text-lime-ink hover:bg-coral/90'
 }
 
 export function Button({
@@ -19,7 +19,7 @@ export function Button({
 	return (
 		<button
 			type={type}
-			className={`inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${variants[variant]} ${className}`}
+			className={`inline-flex h-10 items-center justify-center rounded-xl px-4 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime disabled:cursor-not-allowed disabled:opacity-50 ${variants[variant]} ${className}`}
 			{...props}
 		/>
 	)

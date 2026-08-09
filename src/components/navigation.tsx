@@ -1,6 +1,9 @@
+'use client'
+
 import { LogoutButton } from '@/modules/auth/ui/logout-button'
 import { NotificationsBell } from '@/modules/notifications/ui/notifications-bell'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 
 type NavigationProps = {
 	user: {
@@ -9,34 +12,48 @@ type NavigationProps = {
 	}
 }
 
-const linkClassName =
-	'rounded-sm text-sm text-zinc-600 hover:text-zinc-950 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-zinc-900'
-
 export function Navigation({ user }: NavigationProps) {
+	const pathname = usePathname()
+	const initials = user.name.slice(0, 2).toUpperCase()
+	const linkClassName = (href: string) =>
+		`rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime ${
+			pathname === href
+				? 'bg-raised text-ink shadow-sm'
+				: 'text-muted hover:text-ink'
+		}`
+
 	return (
-		<header className="border-b border-zinc-200 bg-white">
+		<header className="sticky top-0 z-40 border-b border-line bg-surface/85 backdrop-blur-xl">
 			<nav
 				aria-label="Основна навігація"
-				className="mx-auto flex min-h-16 max-w-6xl flex-wrap items-center gap-x-4 gap-y-3 px-4 py-3 sm:flex-nowrap sm:gap-6 sm:px-6"
+				className="mx-auto flex min-h-18 max-w-7xl flex-wrap items-center gap-x-3 gap-y-3 px-4 py-3 sm:flex-nowrap sm:px-6"
 			>
 				<Link
 					href="/rooms"
-					className="mr-auto rounded-sm text-lg font-semibold focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-zinc-900"
+					className="mr-auto inline-flex items-center gap-2.5 rounded-lg text-lg font-bold tracking-tight focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-lime"
 				>
-					Meetly
+					<span
+						aria-hidden="true"
+						className="flex h-7 w-7 items-end justify-center gap-0.5 rounded-lg bg-lime p-1.5"
+					>
+						<span className="h-2 w-1 rounded-full bg-lime-ink" />
+						<span className="h-4 w-1 rounded-full bg-lime-ink" />
+						<span className="h-3 w-1 rounded-full bg-lime-ink" />
+					</span>
+					<span>Meetly</span>
 				</Link>
 
-				<div className="order-3 flex w-full items-center gap-4 sm:order-0 sm:w-auto sm:gap-6">
+				<div className="order-3 flex w-full items-center gap-1 rounded-xl border border-line bg-canvas/60 p-1 sm:order-0 sm:w-auto">
 					<Link
 						href="/rooms"
-						className={linkClassName}
+						className={linkClassName('/rooms')}
 					>
 						Розклад
 					</Link>
 
 					<Link
 						href="/my-bookings"
-						className={linkClassName}
+						className={linkClassName('/my-bookings')}
 					>
 						Мої бронювання
 					</Link>
@@ -44,9 +61,14 @@ export function Navigation({ user }: NavigationProps) {
 
 				<NotificationsBell />
 
-				<div className="hidden text-right md:block">
-					<p className="text-sm font-medium">{user.name}</p>
-					<p className="text-xs text-zinc-500">{user.email}</p>
+				<div className="hidden items-center gap-2.5 md:flex">
+					<span className="grid h-9 w-9 place-items-center rounded-full bg-lime-soft text-xs font-bold text-lime">
+						{initials}
+					</span>
+					<div>
+						<p className="text-sm font-semibold">{user.name}</p>
+						<p className="text-xs text-muted">{user.email}</p>
+					</div>
 				</div>
 
 				<LogoutButton />

@@ -1,7 +1,7 @@
 'use client'
 
 import { intervalsOverlap, SLOT_MINUTES } from '@/modules/bookings/time'
-import { useEffect, useRef } from 'react'
+import { useState } from 'react'
 import {
 	DISPLAY_TIME_LABELS,
 	formatTimeInTimeZone,
@@ -16,6 +16,7 @@ import {
 type WeekGridProps = {
 	bookings: ScheduleBooking[]
 	days: WeekDay[]
+	emphasizeOwnBookings: boolean
 	now: Date
 	timeZone: string
 	onCancelBooking: (
@@ -27,7 +28,8 @@ type WeekGridProps = {
 	onSelectSlot: (startAt: Date) => void
 }
 
-const SLOT_HEIGHT = 40
+const DESKTOP_SLOT_HEIGHT = 36
+const MOBILE_SLOT_HEIGHT = 48
 const DAY_MINUTES = 24 * 60
 
 type LaidOutBookingSegment = BookingSegment & {
@@ -126,16 +128,24 @@ export function layoutBookingSegments(
 	return result
 }
 
+export function getInitialMobileDayIndex(days: WeekDay[]) {
+	const todayIndex = days.findIndex(day => day.isToday)
+
+	return todayIndex >= 0 ? todayIndex : 0
+}
+
 export function WeekGrid({
 	bookings,
 	days,
+	emphasizeOwnBookings,
 	now,
 	timeZone,
 	onCancelBooking,
 	onSelectSlot
 }: WeekGridProps) {
-	const scrollContainerRef = useRef<HTMLDivElement>(null)
-	const lastAutoScrollKeyRef = useRef('')
+	const [mobileDayKey, setMobileDayKey] = useState(
+		() => days[getInitialMobileDayIndex(days)]?.key ?? ''
+	)
 	const marker = getCurrentTimeMarker(now, days, timeZone)
 	const rawBookingSegments = getBookingSegments(bookings, days, timeZone)
 	const { bookableSlots, displayRange } = getScheduleSlots(days, timeZone, now)
@@ -166,6 +176,12 @@ export function WeekGrid({
 		endMinutes / SLOT_MINUTES + 1
 	)
 	const timeSlots = timeLabels.slice(0, -1)
+	const bookableSlotKeys = new Set(
+		bookableSlots.map(
+			segment =>
+				`${segment.dayIndex}-${formatTimeInTimeZone(new Date(segment.startAt), timeZone)}`
+		)
+	)
 	const currentMarker =
 		marker &&
 		marker.percentage >= rangeStart &&
@@ -175,108 +191,89 @@ export function WeekGrid({
 					percentage: ((marker.percentage - rangeStart) / rangeHeight) * 100
 				}
 			: null
-	const gridHeight = timeSlots.length * SLOT_HEIGHT
-	const scrollTarget =
-		freeSlotSegments[0]?.top ??
-		currentMarker?.percentage ??
-		bookingSegments[0]?.top ??
-		0
-	const autoScrollKey = `${days[0]?.key ?? ''}-${timeZone}-${startMinutes}-${endMinutes}`
+	const fallbackMobileDayIndex = getInitialMobileDayIndex(days)
+	const storedMobileDayIndex = days.findIndex(day => day.key === mobileDayKey)
+	const mobileDayIndex =
+		storedMobileDayIndex >= 0 ? storedMobileDayIndex : fallbackMobileDayIndex
+	const mobileDay = days[mobileDayIndex]
+	const allDayIndexes = days.map((_, index) => index)
 
-	useEffect(() => {
-		if (lastAutoScrollKeyRef.current === autoScrollKey) {
-			return
-		}
+	const renderTimeline = (
+		visibleDayIndexes: number[],
+		slotHeight: number,
+		isMobile: boolean
+	) => {
+		const dayPositions = new Map(
+			visibleDayIndexes.map((dayIndex, position) => [dayIndex, position])
+		)
+		const dayCount = visibleDayIndexes.length
+		const gridHeight = timeSlots.length * slotHeight
+		const getSlotColor = (dayIndex: number, slot: string) =>
+			bookableSlotKeys.has(`${dayIndex}-${slot}`)
+				? 'bg-lime-soft/35'
+				: 'bg-canvas/65'
+		const visibleFreeSlots = freeSlotSegments.filter(segment =>
+			dayPositions.has(segment.dayIndex)
+		)
+		const visibleBookings = bookingSegments.filter(segment =>
+			dayPositions.has(segment.dayIndex)
+		)
+		const visibleMarker =
+			currentMarker && dayPositions.has(currentMarker.dayIndex)
+				? currentMarker
+				: null
 
-		lastAutoScrollKeyRef.current = autoScrollKey
-
-		if (scrollContainerRef.current) {
-			scrollContainerRef.current.scrollTop = Math.max(
-				0,
-				(scrollTarget / 100) * gridHeight - SLOT_HEIGHT * 3
-			)
-		}
-	}, [autoScrollKey, gridHeight, scrollTarget])
-
-	return (
-		<div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
-			<div className="min-w-220">
-				<div className="grid grid-cols-[5rem_1fr] border-b border-zinc-200">
-					<div className="flex items-center justify-end bg-zinc-50 px-3 text-xs font-medium uppercase tracking-wide text-zinc-500">
-						Час
-					</div>
-
-					<div className="grid grid-cols-7">
-						{days.map(day => (
-							<div
-								key={day.key}
-								className={`border-l border-zinc-200 px-2 py-3 text-center ${
-									day.isToday
-										? 'bg-blue-50 text-blue-900'
-										: day.isPast
-											? 'bg-zinc-100 text-zinc-400'
-											: ''
-								}`}
-							>
-								<span className="block text-xs font-medium uppercase tracking-wide">
-									{day.weekdayLabel}
-								</span>
-								<span className="mt-1 block text-sm font-semibold">
-									{day.dateLabel}
-								</span>
-								{day.isPast && <span className="sr-only">Минулий день</span>}
-								{day.isToday && <span className="sr-only">Сьогодні</span>}
-							</div>
-						))}
-					</div>
+		return (
+			<div className="grid grid-cols-[4rem_minmax(0,1fr)] lg:grid-cols-[4.5rem_minmax(0,1fr)]">
+				<div
+					className="relative border-r border-line bg-canvas/45"
+					style={{ height: gridHeight }}
+				>
+					{timeLabels.map((label, index) => (
+						<span
+							key={label}
+							className={`absolute right-2 z-10 text-[10px] leading-none tabular-nums text-muted lg:right-3 ${
+								index === 0
+									? 'translate-y-1'
+									: index === timeLabels.length - 1
+										? '-translate-y-[calc(100%+4px)]'
+										: '-translate-y-1/2'
+							}`}
+							style={{ top: index * slotHeight }}
+						>
+							{label}
+						</span>
+					))}
 				</div>
 
 				<div
-					ref={scrollContainerRef}
-					className="grid max-h-144 grid-cols-[5rem_1fr] overflow-y-auto"
+					className="relative min-w-0"
+					style={{ height: gridHeight }}
 				>
 					<div
-						className="relative border-r border-zinc-200 bg-zinc-50"
-						style={{ height: gridHeight }}
-					>
-						{timeLabels.map((label, index) => (
-							<span
-								key={label}
-								className={`absolute right-3 text-xs tabular-nums text-zinc-500 ${
-									index === 0
-										? 'translate-y-1'
-										: index === timeLabels.length - 1
-											? '-translate-y-full'
-											: '-translate-y-1/2'
-								}`}
-								style={{ top: `${(index / timeSlots.length) * 100}%` }}
-							>
-								{label}
-							</span>
-						))}
-					</div>
-
-					<div
-						className="relative grid grid-cols-7"
-						style={{ height: gridHeight }}
+						className="absolute inset-x-0 grid border-t border-line/70"
+						style={{
+							top: 0,
+							height: gridHeight,
+							gridTemplateColumns: `repeat(${dayCount}, minmax(0, 1fr))`
+						}}
 					>
 						{timeSlots.flatMap(slot =>
-							days.map(day => (
-								<div
-									key={`${day.key}-${slot}`}
-									className={`h-6 border-r border-b border-zinc-200 last:border-r-0 ${
-										day.isToday
-											? 'bg-blue-50/40'
-											: day.isPast
-												? 'bg-zinc-100/80'
-												: ''
-									}`}
-								/>
-							))
+							visibleDayIndexes.map(dayIndex => {
+								const day = days[dayIndex]
+								return (
+									<div
+										key={`${day?.key}-${slot}`}
+										className={`border-r border-b border-line/70 last:border-r-0 ${getSlotColor(dayIndex, slot)}`}
+										style={{ height: slotHeight }}
+									/>
+								)
+							})
 						)}
 
-						{freeSlotSegments.map(segment => {
+						{visibleFreeSlots.map(segment => {
 							const day = days[segment.dayIndex]
+							const dayPosition = dayPositions.get(segment.dayIndex) ?? 0
 							const time = formatTimeInTimeZone(
 								new Date(segment.startAt),
 								timeZone
@@ -288,11 +285,11 @@ export function WeekGrid({
 									key={`${segment.id}-${segment.dayIndex}`}
 									type="button"
 									aria-label={label}
-									className="group absolute z-1 flex items-center justify-center rounded-sm bg-emerald-50/80 text-emerald-700 outline-none transition-colors hover:bg-emerald-100 focus-visible:z-20 focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-inset"
+									className="group absolute z-1 flex touch-manipulation items-center justify-center rounded-lg bg-transparent text-lime outline-none transition-colors hover:bg-lime/15 active:bg-lime/20 focus-visible:z-20 focus-visible:ring-2 focus-visible:ring-lime focus-visible:ring-inset"
 									style={{
 										top: `${segment.top}%`,
-										left: `${(segment.dayIndex / days.length) * 100}%`,
-										width: `${100 / days.length}%`,
+										left: `${(dayPosition / dayCount) * 100}%`,
+										width: `${100 / dayCount}%`,
 										height: `${segment.height}%`
 									}}
 									title={label}
@@ -300,7 +297,11 @@ export function WeekGrid({
 								>
 									<span
 										aria-hidden="true"
-										className="opacity-30 transition-opacity group-hover:opacity-100"
+										className={`grid h-6 w-6 place-items-center rounded-full border border-lime/30 bg-lime-soft/70 text-sm font-bold transition-opacity ${
+											isMobile
+												? 'opacity-60'
+												: 'opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100'
+										}`}
 									>
 										+
 									</span>
@@ -308,45 +309,60 @@ export function WeekGrid({
 							)
 						})}
 
-						{bookingSegments.map(segment => {
-							const isPast = days[segment.dayIndex]?.isPast
-							const dayWidth = 100 / days.length
+						{visibleBookings.map(segment => {
+							const dayPosition = dayPositions.get(segment.dayIndex) ?? 0
+							const dayWidth = 100 / dayCount
+							const isPast = new Date(segment.endAt) <= now
+							const startLabel = formatTimeInTimeZone(
+								new Date(segment.startAt),
+								timeZone
+							)
+							const endLabel = formatTimeInTimeZone(
+								new Date(segment.endAt),
+								timeZone
+							)
 
 							return (
 								<div
 									key={`${segment.id}-${segment.dayIndex}`}
-									className={`absolute z-10 overflow-hidden rounded px-1.5 py-1 text-xs text-white shadow-sm ${
-										segment.isOwn ? 'bg-blue-600' : 'bg-zinc-600'
-									} ${isPast ? 'opacity-60 saturate-50' : ''}`}
+									className={`absolute z-10 overflow-hidden rounded-lg border px-2 py-1.5 text-xs shadow-sm transition-opacity ${
+										segment.isOwn
+											? 'border-lime/50 bg-lime text-lime-ink'
+											: 'border-grape/15 bg-grape-soft text-grape'
+									} ${isPast ? 'opacity-45 saturate-50' : ''} ${
+										emphasizeOwnBookings && !segment.isOwn ? 'opacity-30' : ''
+									}`}
 									style={{
 										top: `${segment.top}%`,
-										left: `${dayWidth * segment.dayIndex + (dayWidth * segment.columnIndex) / segment.columnCount}%`,
+										left: `${dayWidth * dayPosition + (dayWidth * segment.columnIndex) / segment.columnCount}%`,
 										width: `${dayWidth / segment.columnCount}%`,
 										height: `${segment.height}%`
 									}}
-									title={`${segment.title}: ${formatTimeInTimeZone(new Date(segment.startAt), timeZone)}–${formatTimeInTimeZone(new Date(segment.endAt), timeZone)}`}
+									title={`${segment.title}: ${startLabel}–${endLabel}`}
 								>
 									<span
-										className={`block truncate font-medium ${segment.isOwn ? 'pr-6' : ''}`}
+										className={`block truncate font-semibold ${segment.isOwn ? 'pr-10 lg:pr-6' : ''}`}
 									>
 										{segment.title}
 									</span>
-									<span className="block truncate opacity-90">
-										{segment.authorName}
+									<span className="mt-1 block truncate text-[10px] opacity-80">
+										{startLabel}–{endLabel}
+									</span>
+									<span className="mt-1 block truncate text-[10px] opacity-70">
+										{segment.isOwn ? 'Ваше бронювання' : segment.authorName}
 									</span>
 									{segment.isOwn && new Date(segment.startAt) > now && (
 										<button
 											type="button"
 											aria-label={`Скасувати бронювання «${segment.title}»`}
-											className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded bg-white/20 text-sm leading-none outline-none hover:bg-white/30 focus-visible:ring-2 focus-visible:ring-white disabled:cursor-not-allowed disabled:opacity-60"
+											className="absolute right-0.5 top-0.5 flex h-11 w-11 touch-manipulation items-center justify-center rounded-lg bg-lime-ink/10 text-lg leading-none outline-none hover:bg-lime-ink/20 focus-visible:ring-2 focus-visible:ring-lime-ink disabled:cursor-not-allowed disabled:opacity-60 lg:right-1 lg:top-1 lg:h-5 lg:w-5 lg:text-sm"
 											title="Скасувати бронювання"
 											onClick={() =>
-											onCancelBooking({
-												id: segment.id,
-												title: segment.title,
-												recurringSeriesId:
-													segment.recurringSeriesId
-											})
+												onCancelBooking({
+													id: segment.id,
+													title: segment.title,
+													recurringSeriesId: segment.recurringSeriesId
+												})
 											}
 										>
 											×
@@ -356,22 +372,105 @@ export function WeekGrid({
 							)
 						})}
 
-						{currentMarker && (
+						{visibleMarker && (
 							<div
 								aria-label={`Поточний час: ${formatTimeInTimeZone(now, timeZone)}`}
-								className="pointer-events-none absolute z-10 h-0.5 bg-red-500"
+								className="pointer-events-none absolute z-20 h-px bg-coral"
 								role="status"
 								style={{
-									top: `${currentMarker.percentage}%`,
-									left: `${(currentMarker.dayIndex / days.length) * 100}%`,
-									width: `${100 / days.length}%`
+									top: `${visibleMarker.percentage}%`,
+									left: `${((dayPositions.get(visibleMarker.dayIndex) ?? 0) / dayCount) * 100}%`,
+									width: `${100 / dayCount}%`
 								}}
 							>
-								<span className="absolute -left-1 -top-0.75 h-2 w-2 rounded-full bg-red-500" />
+								<span className="absolute -left-1 -top-0.75 h-2 w-2 rounded-full bg-coral" />
 							</div>
 						)}
 					</div>
 				</div>
+			</div>
+		)
+	}
+
+	return (
+		<div className="overflow-hidden rounded-2xl border border-line bg-raised">
+			<div className="hidden grid-cols-[4.5rem_1fr] border-b border-line lg:grid">
+				<div className="flex items-center justify-end bg-canvas/45 px-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted">
+					Час
+				</div>
+
+				<div className="grid grid-cols-7">
+					{days.map(day => (
+						<div
+							key={day.key}
+							className={`border-l border-line px-2 py-3 text-center ${
+								day.isToday
+									? 'bg-lime-soft text-lime'
+									: day.isPast
+										? 'bg-canvas/55 text-muted/55'
+										: 'text-ink'
+							}`}
+						>
+							<span className="block text-[10px] font-semibold uppercase tracking-[0.12em]">
+								{day.weekdayLabel}
+							</span>
+							<span className="mt-1 block text-sm font-bold">
+								{day.dateLabel}
+							</span>
+							{day.isPast && <span className="sr-only">Минулий день</span>}
+							{day.isToday && <span className="sr-only">Сьогодні</span>}
+						</div>
+					))}
+				</div>
+			</div>
+
+			<div className="bg-canvas/35 p-2 lg:hidden">
+				<nav
+					aria-label="Навігація за днями"
+					className="grid grid-cols-[3rem_minmax(0,1fr)_3rem] items-center gap-2"
+				>
+					<button
+						type="button"
+						aria-label="Попередній день"
+						disabled={mobileDayIndex === 0}
+						className="grid h-12 w-12 touch-manipulation place-items-center rounded-xl bg-raised text-lg text-muted outline-none transition-colors hover:text-ink focus-visible:ring-2 focus-visible:ring-lime disabled:opacity-25"
+						onClick={() =>
+							setMobileDayKey(days[mobileDayIndex - 1]?.key ?? mobileDayKey)
+						}
+					>
+						←
+					</button>
+
+					<div className="min-w-0 text-center">
+						<p className="truncate text-sm font-bold capitalize text-ink">
+							{mobileDay?.weekdayLabel}, {mobileDay?.dateLabel}
+						</p>
+						<p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted">
+							{mobileDay?.isToday
+								? 'Сьогодні'
+								: `День ${mobileDayIndex + 1} із ${days.length}`}
+						</p>
+					</div>
+
+					<button
+						type="button"
+						aria-label="Наступний день"
+						disabled={mobileDayIndex === days.length - 1}
+						className="grid h-12 w-12 touch-manipulation place-items-center rounded-xl bg-raised text-lg text-muted outline-none transition-colors hover:text-ink focus-visible:ring-2 focus-visible:ring-lime disabled:opacity-25"
+						onClick={() =>
+							setMobileDayKey(days[mobileDayIndex + 1]?.key ?? mobileDayKey)
+						}
+					>
+						→
+					</button>
+				</nav>
+			</div>
+
+			<div className="hidden lg:block">
+				{renderTimeline(allDayIndexes, DESKTOP_SLOT_HEIGHT, false)}
+			</div>
+			<div className="lg:hidden">
+				{renderTimeline([mobileDayIndex], MOBILE_SLOT_HEIGHT, true)}
 			</div>
 		</div>
 	)

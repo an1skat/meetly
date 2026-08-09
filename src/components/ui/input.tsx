@@ -11,10 +11,10 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
 		const errorId = `${id}-error`
 
 		return (
-			<div className="grid gap-1.5">
+			<div className="grid min-w-0 gap-1.5">
 				<label
 					htmlFor={id}
-					className="text-sm font-medium"
+					className="text-sm font-semibold text-ink"
 				>
 					{label}
 				</label>
@@ -24,14 +24,14 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
 					id={id}
 					aria-invalid={error ? true : undefined}
 					aria-describedby={error ? errorId : undefined}
-					className={`h-10 rounded-md border border-zinc-300 bg-white px-3 text-sm outline-none placeholder:text-zinc-400 focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200 disabled:cursor-not-allowed disabled:bg-zinc-100 ${className}`}
+					className={`h-10 min-w-0 w-full rounded-xl border border-line bg-raised px-3 text-sm text-ink outline-none placeholder:text-muted/60 focus:border-lime focus:ring-2 focus:ring-lime/20 disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
 					{...props}
 				/>
 
 				{error && (
 					<p
 						id={errorId}
-						className="text-sm text-red-600"
+						className="text-sm text-coral"
 					>
 						{error}
 					</p>
