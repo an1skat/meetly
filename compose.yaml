@@ -22,6 +22,7 @@ services:
   app:
     build:
       context: .
+      dockerfile: Dockerfile.local
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-meetly}:${POSTGRES_PASSWORD:-meetly}@db:5432/${POSTGRES_DB:-meetly}
       NOTIFY_BEFORE_MINUTES: ${NOTIFY_BEFORE_MINUTES:-10}
